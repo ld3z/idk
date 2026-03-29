@@ -14,7 +14,7 @@ type AppSettings = {
 type SettingsRpcSchema = {
 	bun: {
 		requests: {
-			getSettings: { params: void; response: AppSettings };
+			getSettings: { params: void; response: { settings: AppSettings; dbPath: string } };
 			saveSettings: { params: AppSettings; response: { ok: true } };
 		};
 		messages: Record<never, never>;
@@ -81,7 +81,10 @@ const settingsRpc = BrowserView.defineRPC<SettingsRpcSchema>({
 		requests: {
 			getSettings: () => {
 				const row = db.query(`SELECT * FROM app_settings WHERE id = 1`).get() as Partial<AppSettings> | undefined;
-				return { ...DEFAULT_SETTINGS, ...row };
+				return {
+					settings: { ...DEFAULT_SETTINGS, ...row },
+					dbPath,
+				};
 			},
 			saveSettings: (settings) => {
 				db.query(`

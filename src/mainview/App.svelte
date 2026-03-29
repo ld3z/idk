@@ -30,7 +30,7 @@
   type SettingsRpcSchema = {
     bun: {
       requests: {
-        getSettings: { params: void; response: AppSettings };
+        getSettings: { params: void; response: { settings: AppSettings; dbPath: string } };
         saveSettings: { params: AppSettings; response: { ok: true } };
       };
       messages: Record<never, never>;
@@ -42,6 +42,8 @@
   };
 
   let rpc: any;
+  let settingsDbPath = $state("");
+  let saveStatus = $state<"idle" | "saved">("idle");
 
   let mounted = $state(false);
   onMount(() => {
@@ -160,12 +162,17 @@
 
     const stored = await rpc.request.getSettings();
     if (stored) {
-      settings = { ...settings, ...stored };
+      settings = { ...settings, ...stored.settings };
+      settingsDbPath = stored.dbPath;
     }
   });
 
   async function saveSettings() {
     await rpc.request.saveSettings(settings);
+    saveStatus = "saved";
+    window.setTimeout(() => {
+      saveStatus = "idle";
+    }, 1800);
   }
 
 </script>
@@ -263,15 +270,31 @@
 
     {#if activeNav === "Settings"}
     <section class="workspace">
-      <div class="library-header" class:visible={mounted}>
+      <div class="settings-header" class:visible={mounted}>
         <div class="header-left">
           <h1 class="page-title">Settings</h1>
           <span class="item-count">Configuration</span>
         </div>
+        <button class="global-save-btn" type="button" onclick={saveSettings}>
+          <Icon icon="ph:floppy-disk" class="save-icon" />
+          {saveStatus === "saved" ? "Saved" : "Save Changes"}
+        </button>
       </div>
       
       <div class="settings-grid">
         <div class="settings-card" class:visible={mounted} style="transition-delay: 0.08s">
+          <div class="card-header">
+            <Icon icon="ph:database" class="card-icon" />
+            <h3>Database</h3>
+          </div>
+          <p class="card-desc">Local settings storage</p>
+          <div class="db-path-display">
+            <span class="path-label">Database Path</span>
+            <code class="path-value">{settingsDbPath || "Loading..."}</code>
+          </div>
+        </div>
+
+        <div class="settings-card" class:visible={mounted} style="transition-delay: 0.1s">
           <div class="card-header">
             <Icon icon="ph:cloud-arrow-up" class="card-icon" />
             <h3>ImgChest</h3>
@@ -291,10 +314,6 @@
               </button>
             </div>
           </div>
-          <button class="save-btn" type="button" onclick={saveSettings}>
-            <Icon icon="ph:floppy-disk" class="save-icon" />
-            Save
-          </button>
         </div>
 
         <div class="settings-card" class:visible={mounted} style="transition-delay: 0.12s">
@@ -331,10 +350,6 @@
               <input bind:value={settings.githubBranch} class="setting-input" placeholder="main" />
             </div>
           </div>
-          <button class="save-btn" type="button" onclick={saveSettings}>
-            <Icon icon="ph:floppy-disk" class="save-icon" />
-            Save
-          </button>
         </div>
 
         <div class="settings-card about-card" class:visible={mounted} style="transition-delay: 0.16s">
@@ -807,10 +822,70 @@
     margin: 0 0 20px;
   }
 
-  .input-group {
+  .settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: all 0.4s ease;
+  }
+
+  .settings-header.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .global-save-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, #0891b2 100%);
+    border: none;
+    border-radius: 8px;
+    color: var(--bg-deep);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .global-save-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(34, 211, 238, 0.3);
+  }
+
+  .global-save-btn:active {
+    transform: translateY(0);
+  }
+
+  .db-path-display {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    padding: 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--bg-elevated);
+  }
+
+  .path-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .path-value {
+    color: var(--text-primary);
+    font-size: 0.78rem;
+    font-family: "JetBrains Mono", monospace;
+    word-break: break-all;
+    white-space: pre-wrap;
   }
 
   .input-list {
@@ -823,34 +898,6 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-  }
-
-  .save-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    padding: 12px 16px;
-    margin-top: 20px;
-    background: linear-gradient(135deg, var(--accent-cyan) 0%, #0891b2 100%);
-    border: none;
-    border-radius: 8px;
-    color: var(--bg-deep);
-    font-family: inherit;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .save-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(34, 211, 238, 0.3);
-  }
-
-  .save-btn:active {
-    transform: translateY(0);
   }
 
   :global(.save-icon) {
