@@ -1,0 +1,24 @@
+{
+	"name": "kaguya",
+	"version": "1.0.0",
+	"type": "module",
+	"description": "kaguya-gui",
+	"scripts": {
+		"start": "vite build && electrobun dev",
+		"dev": "electrobun dev --watch",
+		"dev:hmr": "concurrently \"bun run hmr\" \"bun run start\"",
+		"hmr": "vite --port 5173",
+		"build:canary": "vite build && electrobun build --env=canary"
+	},
+	"dependencies": {
+		"electrobun": "1.16.0"
+	},
+	"devDependencies": {
+		"@sveltejs/vite-plugin-svelte": "^7.0.0",
+		"@types/bun": "latest",
+		"concurrently": "^9.2.1",
+		"svelte": "^5.55.0",
+		"typescript": "^6.0.2",
+		"vite": "^8.0.3"
+	}
+}
