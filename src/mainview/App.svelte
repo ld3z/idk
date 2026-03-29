@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import Icon from "@iconify/svelte";
 
   type MangaStatus = "Reading" | "Plan to read" | "On hold" | "Completed";
   type Shelf = "All" | "Reading" | "Plan to read" | "On hold" | "Completed";
@@ -186,12 +187,20 @@
   }
 
   let activeNav = $state("Library");
-  const navItems = [
-    { name: "Library", icon: "◈" },
-    { name: "Reading list", icon: "◇" },
-    { name: "Discover", icon: "○" },
-    { name: "Settings", icon: "◎" },
+  const navItems: { name: string; icon: string }[] = [
+    { name: "Library", icon: "ph:books-thin" },
+    { name: "Settings", icon: "ph:gear-thin" },
   ];
+
+  // Settings state
+  let settings = $state({
+    theme: "dark",
+    accentColor: "#00d4ff",
+    showRatings: true,
+    compactView: false,
+    autoSync: false,
+    notifications: true,
+  });
 </script>
 
 <svelte:head>
@@ -222,7 +231,7 @@
           onclick={() => (activeNav = item.name)}
           style={`transition-delay: ${0.04 + i * 0.03}s`}
         >
-          <span class="nav-icon" class:active={activeNav === item.name}>{item.icon}</span>
+          <Icon icon={item.icon} class={`nav-icon ${activeNav === item.name ? "active" : ""}`} />
           {item.name}
           {#if activeNav === item.name}
             <span class="nav-glow"></span>
@@ -284,9 +293,10 @@
       </div>
     </section>
 
+    {#if activeNav === "Library"}
     <section class="toolbar">
       <label class="search-box">
-        <span class="search-icon">⌕</span>
+        <Icon icon="ph:magnifying-glass" class="search-icon" />
         <input bind:value={search} placeholder="Search titles..." />
       </label>
 
@@ -301,9 +311,7 @@
             {option}
           </button>
         {/each}
-      </div>
-
-      <label class="sort-select">
+      </div>        <label class="sort-select">
         <select bind:value={selectedSort}>
           {#each sortOptions as option}
             <option>{option}</option>
@@ -333,13 +341,16 @@
                 <p class="author">{manga.author}</p>
                 <div class="manga-footer">
                   <span class="status-tag">{manga.status}</span>
-                  <span class="rating">★ {manga.rating.toFixed(1)}</span>
+                  {#if settings.showRatings}
+                    <span class="rating">★ {manga.rating.toFixed(1)}</span>
+                  {/if}
                 </div>
               </div>
             </button>
           {/each}
         {:else}
           <div class="empty-state">
+            <Icon icon="ph:folder-open" class="empty-icon" />
             <p>No titles found</p>
           </div>
         {/if}
@@ -393,6 +404,118 @@
         </section>
       </aside>
     </section>
+    {/if}
+
+    {#if activeNav === "Settings"}
+    <section class="settings-panel" class:visible={mounted} style="transition-delay: 0.1s">
+      <div class="settings-header">
+        <Icon icon="ph:gear-thin" class="settings-icon" />
+        <div>
+          <h2>Settings</h2>
+          <p>Customize your experience</p>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Appearance</h3>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Theme</span>
+            <span class="setting-desc">Choose light or dark mode</span>
+          </div>
+          <select bind:value={settings.theme} class="setting-select">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Accent Color</span>
+            <span class="setting-desc">Primary accent for UI</span>
+          </div>
+          <div class="color-options">
+            <button class="color-btn cyan" class:active={settings.accentColor === "#00d4ff"} onclick={() => settings.accentColor = "#00d4ff"} type="button"></button>
+            <button class="color-btn purple" class:active={settings.accentColor === "#a855f7"} onclick={() => settings.accentColor = "#a855f7"} type="button"></button>
+            <button class="color-btn pink" class:active={settings.accentColor === "#ec4899"} onclick={() => settings.accentColor = "#ec4899"} type="button"></button>
+            <button class="color-btn orange" class:active={settings.accentColor === "#f97316"} onclick={() => settings.accentColor = "#f97316"} type="button"></button>
+            <button class="color-btn green" class:active={settings.accentColor === "#22c55e"} onclick={() => settings.accentColor = "#22c55e"} type="button"></button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Compact View</span>
+            <span class="setting-desc">Show smaller cards</span>
+          </div>
+          <button
+            class="toggle"
+            class:active={settings.compactView}
+            onclick={() => settings.compactView = !settings.compactView}
+            type="button"
+          >
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Library</h3>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Show Ratings</span>
+            <span class="setting-desc">Display ratings on cards</span>
+          </div>
+          <button
+            class="toggle"
+            class:active={settings.showRatings}
+            onclick={() => settings.showRatings = !settings.showRatings}
+            type="button"
+          >
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Auto Sync</span>
+            <span class="setting-desc">Automatically sync library</span>
+          </div>
+          <button
+            class="toggle"
+            class:active={settings.autoSync}
+            onclick={() => settings.autoSync = !settings.autoSync}
+            type="button"
+          >
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Notifications</h3>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Enable Notifications</span>
+            <span class="setting-desc">Get updates about your library</span>
+          </div>
+          <button
+            class="toggle"
+            class:active={settings.notifications}
+            onclick={() => settings.notifications = !settings.notifications}
+            type="button"
+          >
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>About</h3>
+        <div class="about-info">
+          <p><strong>Kaguya Library</strong> v1.0.0</p>
+          <p class="muted">Manga collection manager</p>
+        </div>
+      </div>
+    </section>
+    {/if}
   </section>
 </main>
 
@@ -507,14 +630,31 @@
     color: #00d4ff;
   }
 
-  .nav-icon {
-    font-size: 1rem;
+  :global(.nav-icon) {
+    font-size: 1.25rem;
     opacity: 0.6;
     transition: opacity 0.2s;
   }
 
-  .nav-icon.active {
+  :global(.nav-icon.active) {
     opacity: 1;
+    color: #00d4ff;
+  }
+
+  :global(.search-icon) {
+    font-size: 1.1rem;
+    color: #52525b;
+  }
+
+  :global(.empty-icon) {
+    font-size: 3rem;
+    color: #3f3f46;
+    margin-bottom: 12px;
+  }
+
+  :global(.settings-icon) {
+    font-size: 2rem;
+    color: #00d4ff;
   }
 
   .nav-glow {
@@ -1053,6 +1193,179 @@
     text-align: center;
     padding: 40px;
     color: #52525b;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Settings Panel */
+  .settings-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: all 0.4s ease;
+  }
+
+  .settings-panel.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .settings-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: #0c0c0e;
+    border: 1px solid #18181b;
+    border-radius: 12px;
+  }
+
+  .settings-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #fafafa;
+    margin: 0;
+  }
+
+  .settings-header p {
+    font-size: 0.85rem;
+    color: #52525b;
+    margin: 4px 0 0;
+  }
+
+  .settings-section {
+    background: #0c0c0e;
+    border: 1px solid #18181b;
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .settings-section h3 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #00d4ff;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 0 0 16px;
+  }
+
+  .setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #18181b;
+  }
+
+  .setting-row:last-child {
+    border-bottom: none;
+  }
+
+  .setting-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .setting-label {
+    font-size: 0.9rem;
+    color: #fafafa;
+  }
+
+  .setting-desc {
+    font-size: 0.75rem;
+    color: #52525b;
+  }
+
+  .setting-select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #18181b;
+    border: 1px solid #27272a;
+    color: #a1a1aa;
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .setting-select:focus {
+    border-color: #00d4ff;
+  }
+
+  .color-options {
+    display: flex;
+    gap: 8px;
+  }
+
+  .color-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .color-btn.cyan { background: #00d4ff; }
+  .color-btn.purple { background: #a855f7; }
+  .color-btn.pink { background: #ec4899; }
+  .color-btn.orange { background: #f97316; }
+  .color-btn.green { background: #22c55e; }
+
+  .color-btn.active {
+    border-color: #fafafa;
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  .toggle {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: #27272a;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+  }
+
+  .toggle.active {
+    background: #00d4ff;
+  }
+
+  .toggle-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fafafa;
+    transition: transform 0.2s;
+  }
+
+  .toggle.active .toggle-knob {
+    transform: translateX(20px);
+  }
+
+  .about-info {
+    text-align: center;
+    padding: 16px 0;
+  }
+
+  .about-info p {
+    margin: 0;
+    color: #fafafa;
+    font-size: 0.9rem;
+  }
+
+  .about-info .muted {
+    color: #52525b;
+    font-size: 0.8rem;
+    margin-top: 4px;
   }
 
   @media (max-width: 900px) {
