@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import Icon from "@iconify/svelte";
   import { APP_VERSION } from "../shared/version.ts";
+  import { Electroview } from "electrobun/view";
 
   type MangaStatus = "Reading" | "Plan to read" | "On hold" | "Completed";
 
@@ -26,7 +27,21 @@
     githubBranch: string;
   };
 
-  const SETTINGS_STORAGE_KEY = "kaguya.settings";
+  type SettingsRpcSchema = {
+    bun: {
+      requests: {
+        getSettings: { params: void; response: AppSettings };
+        saveSettings: { params: AppSettings; response: { ok: true } };
+      };
+      messages: Record<never, never>;
+    };
+    webview: {
+      requests: Record<never, never>;
+      messages: Record<never, never>;
+    };
+  };
+
+  let rpc: any;
 
   let mounted = $state(false);
   onMount(() => {
@@ -133,24 +148,25 @@
   let showImgchestKey = $state(false);
   let showGithubToken = $state(false);
 
-  onMount(() => {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!raw) return;
+  onMount(async () => {
+    rpc = Electroview.defineRPC<SettingsRpcSchema>({
+      handlers: {
+        requests: {},
+        messages: {},
+      },
+    });
 
-    try {
-      const stored = JSON.parse(raw) as Partial<AppSettings>;
-      settings = {
-        ...settings,
-        ...stored,
-      };
-    } catch {
-      // Ignore malformed saved settings.
+    new Electroview({ rpc });
+
+    const stored = await rpc.request.getSettings();
+    if (stored) {
+      settings = { ...settings, ...stored };
     }
   });
 
-  $effect(() => {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  });
+  async function saveSettings() {
+    await rpc.request.saveSettings(settings);
+  }
 
 </script>
 
@@ -275,7 +291,7 @@
               </button>
             </div>
           </div>
-          <button class="save-btn" type="button">
+          <button class="save-btn" type="button" onclick={saveSettings}>
             <Icon icon="ph:floppy-disk" class="save-icon" />
             Save
           </button>
@@ -315,7 +331,7 @@
               <input bind:value={settings.githubBranch} class="setting-input" placeholder="main" />
             </div>
           </div>
-          <button class="save-btn" type="button">
+          <button class="save-btn" type="button" onclick={saveSettings}>
             <Icon icon="ph:floppy-disk" class="save-icon" />
             Save
           </button>
