@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Icon from "@iconify/svelte";
+  import { APP_VERSION } from "../shared/version.ts";
 
   type MangaStatus = "Reading" | "Plan to read" | "On hold" | "Completed";
 
@@ -145,15 +146,6 @@
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
   });
 
-  function getStatusColor(status: MangaStatus): string {
-    switch (status) {
-      case "Reading": return "var(--accent-cyan)";
-      case "Completed": return "var(--accent-green)";
-      case "On hold": return "var(--accent-amber)";
-      case "Plan to read": return "var(--accent-muted)";
-      default: return "var(--accent-muted)";
-    }
-  }
 </script>
 
 <svelte:head>
@@ -185,7 +177,7 @@
           <div class="icon-wrapper">
             <Icon icon={activeNav === item.name ? item.iconActive : item.icon} class="nav-svg" />
           </div>
-          <span class="nav-tooltip">{item.name}</span>
+
           {#if activeNav === item.name}
             <span class="active-indicator"></span>
           {/if}
@@ -193,10 +185,7 @@
       {/each}
     </nav>
 
-    <div class="sidebar-bottom" class:visible={mounted} style="transition-delay: 0.18s">
-      <div class="status-dot"></div>
-      <span class="status-text">6 titles</span>
-    </div>
+
   </aside>
 
   <section class="content">
@@ -242,12 +231,7 @@
                   </div>
                 </div>
                 <p class="author">{manga.author}</p>
-                <div class="meta-row">
-                  <span class="status-badge" style={`--badge-color: ${getStatusColor(manga.status)}`}>
-                    {manga.status}
-                  </span>
-                  <span class="volumes">{manga.volumes}</span>
-                </div>
+                <span class="volumes">{manga.volumes}</span>
               </div>
             </button>
         {/each}
@@ -256,56 +240,64 @@
     {/if}
 
     {#if activeNav === "Settings"}
-    <section class="settings-panel" class:visible={mounted} style="transition-delay: 0.1s">
-      <div class="settings-header">
-        <Icon icon="ph:gear-fill" class="settings-icon" />
-        <div>
-          <h2>Settings</h2>
-          <p>Configure ImgChest and GitHub integration</p>
+    <section class="workspace">
+      <div class="library-header" class:visible={mounted}>
+        <div class="header-left">
+          <h1 class="page-title">Settings</h1>
+          <span class="item-count">Configuration</span>
         </div>
       </div>
+      
+      <div class="settings-grid">
+        <div class="settings-card" class:visible={mounted} style="transition-delay: 0.08s">
+          <div class="card-header">
+            <Icon icon="ph:cloud-arrow-up" class="card-icon" />
+            <h3>ImgChest</h3>
+          </div>
+          <p class="card-desc">Image hosting API for manga covers</p>
+          <div class="input-group">
+            <label class="input-label">API Key</label>
+            <input bind:value={settings.imgchestApiKey} class="setting-input" placeholder="Enter your API key" type="password" />
+          </div>
+        </div>
 
-      <div class="settings-section">
-        <h3>ImgChest</h3>
-        <div class="setting-row">
-          <div class="setting-info">
-            <span class="setting-label">API Key</span>
-            <span class="setting-desc">Used to authenticate with ImgChest</span>
+        <div class="settings-card" class:visible={mounted} style="transition-delay: 0.12s">
+          <div class="card-header">
+            <Icon icon="ph:github-logo" class="card-icon" />
+            <h3>GitHub</h3>
           </div>
-          <input bind:value={settings.imgchestApiKey} class="setting-input" placeholder="Enter ImgChest API key" />
+          <p class="card-desc">Repository for syncing manga data</p>
+          <div class="input-stack">
+            <div class="input-group">
+              <label class="input-label">Repository Owner</label>
+              <input bind:value={settings.githubOwner} class="setting-input" placeholder="username or org" />
+            </div>
+            <div class="input-group">
+              <label class="input-label">Repository Name</label>
+              <input bind:value={settings.githubRepo} class="setting-input" placeholder="my-manga-repo" />
+            </div>
+            <div class="input-group">
+              <label class="input-label">Branch</label>
+              <input bind:value={settings.githubBranch} class="setting-input" placeholder="main" />
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div class="settings-section">
-        <h3>GitHub</h3>
-        <div class="setting-row">
-          <div class="setting-info">
-            <span class="setting-label">Repository Owner</span>
-            <span class="setting-desc">GitHub account or organization</span>
+        <div class="settings-card about-card" class:visible={mounted} style="transition-delay: 0.16s">
+          <div class="card-header">
+            <Icon icon="ph:heart-straight" class="card-icon" />
+            <h3>About</h3>
           </div>
-          <input bind:value={settings.githubOwner} class="setting-input" placeholder="owner" />
-        </div>
-        <div class="setting-row">
-          <div class="setting-info">
-            <span class="setting-label">Repository Name</span>
-            <span class="setting-desc">Repository that stores uploads</span>
+          <div class="about-content">
+            <div class="about-logo">
+              <span class="logo-mark">K</span>
+              <div class="logo-text">
+                <span class="app-name">Kaguya</span>
+                <span class="app-version">Version {APP_VERSION}</span>
+              </div>
+            </div>
+            <p class="about-tagline">Manga collection manager</p>
           </div>
-          <input bind:value={settings.githubRepo} class="setting-input" placeholder="repo-name" />
-        </div>
-        <div class="setting-row">
-          <div class="setting-info">
-            <span class="setting-label">Branch</span>
-            <span class="setting-desc">Default branch to target</span>
-          </div>
-          <input bind:value={settings.githubBranch} class="setting-input" placeholder="main" />
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h3>About</h3>
-        <div class="about-info">
-          <p><strong>Kaguya Library</strong> v1.0.0</p>
-          <p class="muted">Manga collection manager</p>
         </div>
       </div>
     </section>
@@ -460,61 +452,6 @@
     background: var(--accent-cyan);
     border-radius: 0 3px 3px 0;
     box-shadow: 0 0 12px var(--accent-cyan);
-  }
-
-  .nav-tooltip {
-    position: absolute;
-    left: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    margin-left: 12px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-default);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    color: var(--text-primary);
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.2s ease;
-  }
-
-  .nav-icon-btn:hover .nav-tooltip {
-    opacity: 1;
-    transform: translateY(-50%) translateX(4px);
-  }
-
-  .sidebar-bottom {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px;
-    background: var(--bg-surface);
-    border-radius: 10px;
-    border: 1px solid var(--border-subtle);
-    opacity: 0;
-    transform: translateY(8px);
-    transition: all 0.35s ease;
-  }
-
-  .sidebar-bottom.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent-green);
-    box-shadow: 0 0 8px var(--accent-green);
-  }
-
-  .status-text {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    font-family: "JetBrains Mono", monospace;
   }
 
   /* Content area */
@@ -744,23 +681,6 @@
     margin-bottom: 10px;
   }
 
-  .meta-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .status-badge {
-    font-size: 0.65rem;
-    font-weight: 500;
-    color: var(--badge-color);
-    background: rgba(255, 255, 255, 0.05);
-    padding: 4px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
   .volumes {
     font-size: 0.7rem;
     color: var(--text-muted);
@@ -778,127 +698,156 @@
     margin-bottom: 12px;
   }
 
-  :global(.settings-icon) {
-    font-size: 2rem;
-    color: var(--accent-cyan);
+  /* Settings Grid */
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    position: relative;
+    z-index: 1;
   }
 
-  /* Settings Panel */
-  .settings-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+  .settings-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 24px;
     opacity: 0;
     transform: translateY(16px);
-    transition: all 0.4s ease;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .settings-panel.visible {
+  .settings-card.visible {
     opacity: 1;
     transform: translateY(0);
   }
 
-  .settings-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 20px;
-    background: #0c0c0e;
-    border: 1px solid #18181b;
-    border-radius: 12px;
+  .settings-card:hover {
+    border-color: var(--border-default);
+    transform: translateY(-2px);
   }
 
-  .settings-header h2 {
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  :global(.card-icon) {
     font-size: 1.5rem;
+    color: var(--accent-cyan);
+  }
+
+  .card-header h3 {
+    font-size: 1.1rem;
     font-weight: 600;
-    color: #fafafa;
+    color: var(--text-primary);
     margin: 0;
+    letter-spacing: -0.01em;
   }
 
-  .settings-header p {
-    font-size: 0.85rem;
-    color: #52525b;
-    margin: 4px 0 0;
+  .card-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0 0 20px;
   }
 
-  .settings-section {
-    background: #0c0c0e;
-    border: 1px solid #18181b;
-    border-radius: 12px;
-    padding: 20px;
-  }
-
-  .settings-section h3 {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #00d4ff;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin: 0 0 16px;
-  }
-
-  .setting-row {
+  .input-group {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .input-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .input-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .setting-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.875rem;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+
+  .setting-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .setting-input:focus {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+  }
+
+  /* About card */
+  .about-card {
+    background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(34, 211, 238, 0.05) 100%);
+  }
+
+  .about-content {
+    margin-top: 8px;
+  }
+
+  .about-logo {
+    display: flex;
     align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid #18181b;
+    gap: 14px;
+    margin-bottom: 12px;
   }
 
-  .setting-row:last-child {
-    border-bottom: none;
+  .logo-mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, #0891b2 100%);
+    color: var(--bg-deep);
   }
 
-  .setting-info {
+  .logo-text {
     display: flex;
     flex-direction: column;
     gap: 2px;
   }
 
-  .setting-label {
-    font-size: 0.9rem;
-    color: #fafafa;
+  .app-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
   }
 
-  .setting-desc {
+  .app-version {
     font-size: 0.75rem;
-    color: #52525b;
+    color: var(--text-muted);
+    font-family: "JetBrains Mono", monospace;
   }
 
-  .setting-input {
-    width: 260px;
-    padding: 8px 12px;
-    border-radius: 6px;
-    background: #18181b;
-    border: 1px solid #27272a;
-    color: #fafafa;
-    font-family: inherit;
+  .about-tagline {
     font-size: 0.85rem;
-    outline: none;
-  }
-
-  .setting-input:focus {
-    border-color: #00d4ff;
-  }
-
-  .about-info {
-    text-align: center;
-    padding: 16px 0;
-  }
-
-  .about-info p {
+    color: var(--text-secondary);
     margin: 0;
-    color: #fafafa;
-    font-size: 0.9rem;
   }
 
-  .about-info .muted {
-    color: #52525b;
-    font-size: 0.8rem;
-    margin-top: 4px;
-  }
-
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     .content {
       padding: 16px;
     }

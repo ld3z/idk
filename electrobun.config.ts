@@ -1,10 +1,11 @@
 import type { ElectrobunConfig } from "electrobun";
+import { APP_VERSION } from "./src/shared/version.ts";
 
 export default {
 	app: {
 		name: "kaguya",
 		identifier: "wotaku.kaguya",
-		version: "0.0.1",
+		version: APP_VERSION,
 	},
 	build: {
 		// Vite builds to dist/, we copy from there
