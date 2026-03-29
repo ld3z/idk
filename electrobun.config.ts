@@ -2,8 +2,8 @@ import type { ElectrobunConfig } from "electrobun";
 
 export default {
 	app: {
-		name: "svelte-app",
-		identifier: "svelteapp.electrobun.dev",
+		name: "kaguya",
+		identifier: "wotaku.kaguya",
 		version: "0.0.1",
 	},
 	build: {

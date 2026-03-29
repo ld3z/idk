@@ -3,7 +3,6 @@
   import Icon from "@iconify/svelte";
 
   type MangaStatus = "Reading" | "Plan to read" | "On hold" | "Completed";
-  type Shelf = "All" | "Reading" | "Plan to read" | "On hold" | "Completed";
 
   type Manga = {
     id: number;
@@ -23,7 +22,6 @@
     githubOwner: string;
     githubRepo: string;
     githubBranch: string;
-    showRatings: boolean;
   };
 
   const SETTINGS_STORAGE_KEY = "kaguya.settings";
@@ -108,93 +106,11 @@
     },
   ];
 
-  const statusOptions: Shelf[] = ["All", "Reading", "Plan to read", "On hold", "Completed"];
-  const sortOptions = ["Recent", "Title", "Rating"];
-
   function getCardDelay(index: number) {
     return `${0.06 * (index % 6)}s`;
   }
 
   let library = $state(seedLibrary);
-  let search = $state("");
-  let activeShelf = $state<Shelf>("All");
-  let selectedSort = $state("Recent");
-  let selectedMangaId = $state(seedLibrary[0].id);
-
-  let newTitle = $state("");
-  let newAuthor = $state("");
-  let newStatus = $state<MangaStatus>("Reading");
-  let newProgress = $state("Vol. 1 / 1");
-  let newVolumes = $state("1 vol");
-
-  const totalCount = $derived(library.length);
-  const readingCount = $derived(library.filter((manga) => manga.status === "Reading").length);
-  const completedCount = $derived(library.filter((manga) => manga.status === "Completed").length);
-  const averageRating = $derived(
-    library.length
-      ? (library.reduce((sum, manga) => sum + manga.rating, 0) / library.length).toFixed(1)
-      : "0.0",
-  );
-
-  const filteredLibrary = $derived.by(() => {
-    const term = search.trim().toLowerCase();
-    return [...library]
-      .filter((manga) => {
-        const matchesShelf = activeShelf === "All" || manga.status === activeShelf;
-        const matchesSearch =
-          !term ||
-          manga.title.toLowerCase().includes(term) ||
-          manga.author.toLowerCase().includes(term) ||
-          manga.tags.some((tag) => tag.toLowerCase().includes(term));
-        return matchesShelf && matchesSearch;
-      })
-      .sort((a, b) => {
-        if (selectedSort === "Title") return a.title.localeCompare(b.title);
-        if (selectedSort === "Rating") return b.rating - a.rating;
-        return b.id - a.id;
-      });
-  });
-
-  const selectedManga = $derived(library.find((manga) => manga.id === selectedMangaId) ?? filteredLibrary[0] ?? library[0]);
-
-  function addManga(event: SubmitEvent) {
-    event.preventDefault();
-    if (!newTitle.trim() || !newAuthor.trim()) return;
-
-    const accentColors = [
-      "linear-gradient(135deg, #00d4ff 0%, #09090b 100%)",
-      "linear-gradient(135deg, #ff6b35 0%, #09090b 100%)",
-      "linear-gradient(135deg, #22c55e 0%, #09090b 100%)",
-      "linear-gradient(135deg, #ec4899 0%, #09090b 100%)",
-    ];
-
-    const nextManga: Manga = {
-      id: Date.now(),
-      title: newTitle.trim(),
-      author: newAuthor.trim(),
-      status: newStatus,
-      progress: newProgress.trim() || "New entry",
-      rating: 4.0,
-      volumes: newVolumes.trim() || "1 vol",
-      updated: "Just added",
-      color: accentColors[library.length % accentColors.length],
-      tags: [newStatus, "Local"],
-    };
-
-    library = [nextManga, ...library];
-    selectedMangaId = nextManga.id;
-    activeShelf = "All";
-    search = "";
-    newTitle = "";
-    newAuthor = "";
-    newStatus = "Reading";
-    newProgress = "Vol. 1 / 1";
-    newVolumes = "1 vol";
-  }
-
-  function selectManga(id: number) {
-    selectedMangaId = id;
-  }
 
   let activeNav = $state("Library");
   const navItems: { name: string; icon: string }[] = [
@@ -208,7 +124,6 @@
     githubOwner: "",
     githubRepo: "",
     githubBranch: "main",
-    showRatings: true,
   } satisfies AppSettings);
 
   onMount(() => {
@@ -269,96 +184,25 @@
     </nav>
 
     <section class="sidebar-card" class:visible={mounted} style="transition-delay: 0.2s">
-      <div class="stat-grid">
-        <div class="stat">
-          <span class="stat-value">{totalCount}</span>
-          <span class="stat-label">Titles</span>
-        </div>
-        <div class="stat">
-          <span class="stat-value accent-cyan">{readingCount}</span>
-          <span class="stat-label">Reading</span>
-        </div>
-      </div>
+      <p class="sidebar-note">Grid view</p>
     </section>
   </aside>
 
   <section class="content">
     <header class="topbar">
       <div>
-        <p class="eyebrow">Library</p>
-        <h1>Your Collection</h1>
-      </div>
-      <div class="topbar-actions">
-        <button class="btn-ghost" type="button">Import</button>
-        <button class="btn-primary" type="button">Sync</button>
+        <h1>Library</h1>
       </div>
     </header>
 
-    <section class="hero" class:visible={mounted} style="transition-delay: 0.1s">
-      <div class="hero-main">
-        <h2>Manage your <span class="gradient-text">manga</span></h2>
-        <div class="hero-stats">
-          <div class="stat-pill">
-            <span class="stat-num">{totalCount}</span>
-            <span class="stat-name">Total</span>
-          </div>
-          <div class="stat-pill cyan">
-            <span class="stat-num">{readingCount}</span>
-            <span class="stat-name">Reading</span>
-          </div>
-          <div class="stat-pill orange">
-            <span class="stat-num">{completedCount}</span>
-            <span class="stat-name">Done</span>
-          </div>
-          <div class="stat-pill purple">
-            <span class="stat-num">{averageRating}</span>
-            <span class="stat-name">Rating</span>
-          </div>
-        </div>
-      </div>
-      <div class="hero-accent">
-        <div class="accent-bar"></div>
-      </div>
-    </section>
-
     {#if activeNav === "Library"}
-    <section class="toolbar">
-      <label class="search-box">
-        <Icon icon="ph:magnifying-glass" class="search-icon" />
-        <input bind:value={search} placeholder="Search titles..." />
-      </label>
-
-      <div class="filter-pills">
-        {#each statusOptions as option}
-          <button
-            class="pill"
-            class:active={activeShelf === option}
-            type="button"
-            onclick={() => (activeShelf = option)}
-          >
-            {option}
-          </button>
-        {/each}
-      </div>        <label class="sort-select">
-        <select bind:value={selectedSort}>
-          {#each sortOptions as option}
-            <option>{option}</option>
-          {/each}
-        </select>
-      </label>
-    </section>
-
     <section class="workspace">
       <div class="library-grid">
-        {#if filteredLibrary.length}
-          {#each filteredLibrary as manga, i}
+        {#each library as manga, i}
             <button
               class="manga-card"
-              class:active={selectedManga?.id === manga.id}
               class:visible={mounted}
               type="button"
-              aria-pressed={selectedManga?.id === manga.id}
-              onclick={() => selectManga(manga.id)}
               style={`transition-delay: ${getCardDelay(i)}`}
             >
               <div class="cover" style={`background:${manga.color}`}>
@@ -367,70 +211,10 @@
               <div class="manga-info">
                 <h3>{manga.title}</h3>
                 <p class="author">{manga.author}</p>
-                <div class="manga-footer">
-                  <span class="status-tag">{manga.status}</span>
-                  {#if settings.showRatings}
-                    <span class="rating">★ {manga.rating.toFixed(1)}</span>
-                  {/if}
-                </div>
               </div>
             </button>
-          {/each}
-        {:else}
-          <div class="empty-state">
-            <Icon icon="ph:folder-open" class="empty-icon" />
-            <p>No titles found</p>
-          </div>
-        {/if}
+        {/each}
       </div>
-
-      <aside class="detail-panel">
-        <section class="detail-card" class:visible={mounted} style="transition-delay: 0.25s">
-          {#if selectedManga}
-            <div class="detail-header">
-              <div class="detail-cover" style={`background:${selectedManga.color}`}>
-                <span>{selectedManga.title.slice(0, 2).toUpperCase()}</span>
-              </div>
-              <div class="detail-title">
-                <h3>{selectedManga.title}</h3>
-                <p>{selectedManga.author}</p>
-              </div>
-            </div>
-            <div class="detail-stats">
-              <div class="detail-row">
-                <span>Status</span>
-                <strong>{selectedManga.status}</strong>
-              </div>
-              <div class="detail-row">
-                <span>Progress</span>
-                <strong>{selectedManga.progress}</strong>
-              </div>
-              <div class="detail-row">
-                <span>Rating</span>
-                <strong class="rating-star">★ {selectedManga.rating.toFixed(1)}</strong>
-              </div>
-            </div>
-          {/if}
-        </section>
-
-        <section class="add-form" class:visible={mounted} style="transition-delay: 0.3s">
-          <h3>Add Manga</h3>
-          <form onsubmit={addManga}>
-            <input bind:value={newTitle} placeholder="Title" />
-            <input bind:value={newAuthor} placeholder="Author" />
-            <div class="form-row">
-              <select bind:value={newStatus}>
-                <option>Reading</option>
-                <option>Plan to read</option>
-                <option>On hold</option>
-                <option>Completed</option>
-              </select>
-              <input bind:value={newVolumes} placeholder="Vols" />
-            </div>
-            <button class="btn-primary full" type="submit">Add to Library</button>
-          </form>
-        </section>
-      </aside>
     </section>
     {/if}
 
@@ -702,240 +486,14 @@
     align-items: center;
   }
 
-  .eyebrow {
-    font-size: 0.75rem;
-    color: #00d4ff;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 4px;
-  }
-
   h1 {
     font-size: 1.5rem;
     font-weight: 600;
     color: #fafafa;
   }
 
-  .topbar-actions {
-    display: flex;
-    gap: 8px;
-  }
-
-  .btn-ghost {
-    padding: 8px 16px;
-    border-radius: 6px;
-    background: transparent;
-    border: 1px solid #27272a;
-    color: #a1a1aa;
-    font-family: inherit;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-ghost:hover {
-    border-color: #3f3f46;
-    color: #fafafa;
-  }
-
-  .btn-primary {
-    padding: 8px 16px;
-    border-radius: 6px;
-    background: #00d4ff;
-    border: none;
-    color: #09090b;
-    font-family: inherit;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-primary:hover {
-    background: #22d3ee;
-    box-shadow: 0 0 16px rgba(0, 212, 255, 0.4);
-  }
-
-  .btn-primary.full {
-    width: 100%;
-    margin-top: 12px;
-  }
-
-  .hero {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 24px;
-    align-items: center;
-    padding: 24px;
-    background: #0c0c0e;
-    border: 1px solid #18181b;
-    border-radius: 12px;
-    opacity: 0;
-    transform: translateY(16px);
-    transition: all 0.4s ease;
-  }
-
-  .hero.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .hero-main h2 {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: #fafafa;
-    margin-bottom: 16px;
-  }
-
-  .gradient-text {
-    background: linear-gradient(90deg, #00d4ff, #a855f7, #ec4899);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .hero-stats {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .stat-pill {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    background: #18181b;
-    border: 1px solid #27272a;
-    border-radius: 20px;
-  }
-
-  .stat-pill.cyan { border-color: rgba(0, 212, 255, 0.3); }
-  .stat-pill.cyan .stat-num { color: #00d4ff; }
-  .stat-pill.orange { border-color: rgba(249, 115, 22, 0.3); }
-  .stat-pill.orange .stat-num { color: #f97316; }
-  .stat-pill.purple { border-color: rgba(168, 85, 247, 0.3); }
-  .stat-pill.purple .stat-num { color: #a855f7; }
-
-  .stat-num {
-    font-family: "JetBrains Mono", monospace;
-    font-weight: 600;
-    color: #fafafa;
-  }
-
-  .stat-name {
-    font-size: 0.75rem;
-    color: #52525b;
-  }
-
-  .hero-accent {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-  }
-
-  .accent-bar {
-    width: 4px;
-    height: 80px;
-    background: linear-gradient(180deg, #00d4ff, #a855f7, #ec4899);
-    border-radius: 2px;
-    box-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
-  }
-
-  .toolbar {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .search-box {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #18181b;
-    border: 1px solid #27272a;
-    border-radius: 8px;
-    padding: 8px 14px;
-    flex: 1;
-    min-width: 200px;
-    max-width: 320px;
-  }
-
-  .search-box:focus-within {
-    border-color: #00d4ff;
-    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
-  }
-
-  .search-icon {
-    color: #52525b;
-    font-size: 1.1rem;
-  }
-
-  .search-box input {
-    background: transparent;
-    border: none;
-    color: #fafafa;
-    font-family: inherit;
-    font-size: 0.875rem;
-    outline: none;
-    width: 100%;
-  }
-
-  .search-box input::placeholder {
-    color: #52525b;
-  }
-
-  .filter-pills {
-    display: flex;
-    gap: 6px;
-  }
-
-  .pill {
-    padding: 6px 12px;
-    border-radius: 16px;
-    background: #18181b;
-    border: 1px solid #27272a;
-    color: #71717a;
-    font-family: inherit;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .pill:hover {
-    border-color: #3f3f46;
-    color: #a1a1aa;
-  }
-
-  .pill.active {
-    background: #00d4ff;
-    border-color: #00d4ff;
-    color: #09090b;
-    font-weight: 500;
-  }
-
-  .sort-select select {
-    padding: 8px 12px;
-    border-radius: 6px;
-    background: #18181b;
-    border: 1px solid #27272a;
-    color: #a1a1aa;
-    font-family: inherit;
-    font-size: 0.875rem;
-    cursor: pointer;
-    outline: none;
-  }
-
-  .sort-select select:focus {
-    border-color: #00d4ff;
-  }
-
   .workspace {
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 24px;
+    display: block;
     flex: 1;
   }
 
@@ -965,11 +523,6 @@
   .manga-card:hover {
     border-color: #3f3f46;
     transform: translateY(-2px);
-  }
-
-  .manga-card.active {
-    border-color: #00d4ff;
-    box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
   }
 
   .cover {
@@ -1005,170 +558,11 @@
     margin-bottom: 8px;
   }
 
-  .manga-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .status-tag {
-    font-size: 0.65rem;
-    padding: 3px 8px;
-    border-radius: 10px;
-    background: #27272a;
-    color: #a1a1aa;
-  }
-
-  .rating {
-    font-size: 0.75rem;
-    color: #fbbf24;
-    font-family: "JetBrains Mono", monospace;
-  }
-
-  .detail-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .detail-card {
-    background: #18181b;
-    border: 1px solid #27272a;
-    border-radius: 10px;
-    padding: 16px;
-    opacity: 0;
-    transform: translateY(12px);
-    transition: all 0.35s ease;
-  }
-
-  .detail-card.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .detail-header {
-    display: flex;
-    gap: 14px;
-    margin-bottom: 16px;
-  }
-
-  .detail-cover {
-    width: 80px;
-    height: 110px;
-    border-radius: 8px;
-    display: flex;
-    align-items: flex-end;
-    padding: 8px;
-    flex-shrink: 0;
-  }
-
-  .detail-cover span {
-    font-family: "Sora", sans-serif;
-    font-weight: 700;
-    font-size: 1rem;
-    color: #fafafa;
-  }
-
-  .detail-title h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #fafafa;
-    margin-bottom: 4px;
-  }
-
-  .detail-title p {
+  .sidebar-note {
+    color: #52525b;
     font-size: 0.8rem;
-    color: #52525b;
-  }
-
-  .detail-stats {
-    border-top: 1px solid #27272a;
-    padding-top: 12px;
-  }
-
-  .detail-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    font-size: 0.85rem;
-  }
-
-  .detail-row span {
-    color: #52525b;
-  }
-
-  .detail-row strong {
-    color: #fafafa;
-  }
-
-  .rating-star {
-    color: #fbbf24 !important;
-  }
-
-  .add-form {
-    background: #18181b;
-    border: 1px solid #27272a;
-    border-radius: 10px;
-    padding: 16px;
-    opacity: 0;
-    transform: translateY(12px);
-    transition: all 0.35s ease;
-  }
-
-  .add-form.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .add-form h3 {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #fafafa;
-    margin-bottom: 12px;
-  }
-
-  .add-form form {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .add-form input,
-  .add-form select {
-    padding: 10px 12px;
-    border-radius: 6px;
-    background: #09090b;
-    border: 1px solid #27272a;
-    color: #fafafa;
-    font-family: inherit;
-    font-size: 0.85rem;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .add-form input:focus,
-  .add-form select:focus {
-    border-color: #00d4ff;
-  }
-
-  .add-form input::placeholder {
-    color: #52525b;
-  }
-
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 80px;
-    gap: 8px;
-  }
-
-  .empty-state {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 40px;
-    color: #52525b;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
   }
 
   /* Settings Panel */
@@ -1286,52 +680,13 @@
     margin-top: 4px;
   }
 
-  @media (max-width: 900px) {
-    .shell {
-      grid-template-columns: 1fr;
-    }
-
-    .sidebar {
-      display: none;
-    }
-
-    .workspace {
-      grid-template-columns: 1fr;
-    }
-
-    .detail-panel {
-      order: -1;
-      flex-direction: row;
-      flex-wrap: wrap;
-    }
-
-    .detail-card, .add-form {
-      flex: 1;
-      min-width: 200px;
-    }
-  }
-
   @media (max-width: 600px) {
     .content {
       padding: 16px;
     }
 
-    .hero {
-      flex-direction: column;
-    }
-
-    .toolbar {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .search-box {
-      max-width: none;
-    }
-
-    .filter-pills {
-      overflow-x: auto;
-      padding-bottom: 4px;
+    .library-grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     }
   }
 </style>
