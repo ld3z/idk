@@ -46,6 +46,17 @@
   let saveStatus = $state<"idle" | "saved">("idle");
   let hasUnsavedChanges = $state(false);
   let originalSettings = $state<AppSettings | null>(null);
+  let toast = $state<{ kind: "success" | "error" | "info"; message: string } | null>(null);
+  let showResetModal = $state(false);
+
+  // Lock body scroll when modal is open
+  $effect(() => {
+    if (showResetModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+  });
 
   let mounted = $state(false);
   onMount(() => {
@@ -188,9 +199,13 @@
     originalSettings = { ...settings };
     hasUnsavedChanges = false;
     saveStatus = "saved";
+    toast = { kind: "success", message: "Settings saved." };
     window.setTimeout(() => {
       saveStatus = "idle";
     }, 1800);
+    window.setTimeout(() => {
+      if (toast?.message === "Settings saved.") toast = null;
+    }, 2200);
   }
 
   // Hidden file input for import
@@ -243,8 +258,10 @@
       await saveSettings();
     } catch (e) {
       importError = "Failed to import settings. Invalid file format.";
+      toast = { kind: "error", message: "Import failed. Invalid settings file." };
       window.setTimeout(() => {
         importError = null;
+        if (toast?.kind === "error") toast = null;
       }, 3000);
     }
     
@@ -252,11 +269,12 @@
     target.value = "";
   }
 
-  function resetSettings() {
-    if (!confirm("Are you sure you want to reset all settings? This cannot be undone.")) {
-      return;
-    }
-    
+  function openResetModal() {
+    showResetModal = true;
+  }
+
+  function confirmReset() {
+    showResetModal = false;
     settings = {
       imgchestApiKey: "",
       githubToken: "",
@@ -266,6 +284,11 @@
     };
     
     saveSettings();
+    toast = { kind: "success", message: "Settings reset and saved." };
+  }
+
+  function cancelReset() {
+    showResetModal = false;
   }
 
 </script>
@@ -311,6 +334,16 @@
   </aside>
 
   <section class="content">
+
+    {#if toast}
+      <div class={`toast ${toast.kind}`} role="status" aria-live="polite">
+        <Icon
+          icon={toast.kind === "success" ? "ph:check-circle" : toast.kind === "error" ? "ph:x-circle" : "ph:info"}
+          class="toast-icon"
+        />
+        <span>{toast.message}</span>
+      </div>
+    {/if}
 
 
     {#if activeNav === "Library"}
@@ -486,7 +519,7 @@
             <span class="section-title">Actions</span>
           </div>
           <div class="action-buttons">
-            <button class="action-btn-reset" type="button" onclick={resetSettings}>
+            <button class="action-btn-reset" type="button" onclick={openResetModal}>
               <Icon icon="ph:trash" class="action-btn-icon" />
               Reset All Settings
             </button>
@@ -504,6 +537,30 @@
     </section>
     {/if}
   </section>
+
+  <!-- Reset Confirmation Modal -->
+  {#if showResetModal}
+    <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-modal-title" onclick={cancelReset}>
+      <div class="modal" onclick={(e) => e.stopPropagation()}>
+        <div class="modal-icon">
+          <Icon icon="ph:warning" />
+        </div>
+        <h2 id="reset-modal-title" class="modal-title">Reset Settings?</h2>
+        <p class="modal-message">
+          This will clear all your settings (ImgChest API key, GitHub tokens, repository config). This action cannot be undone.
+        </p>
+        <div class="modal-actions">
+          <button class="modal-btn-cancel" type="button" onclick={cancelReset}>
+            Cancel
+          </button>
+          <button class="modal-btn-confirm" type="button" onclick={confirmReset}>
+            <Icon icon="ph:trash" />
+            Reset All
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </main>
 
 <style>
@@ -664,6 +721,63 @@
     gap: 24px;
     min-height: 100vh;
     position: relative;
+  }
+
+  .toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    background: rgba(17, 17, 19, 0.92);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(12px);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    z-index: 40;
+    animation: toast-in 0.22s ease-out;
+  }
+
+  .toast.success {
+    border-color: rgba(74, 222, 128, 0.35);
+    box-shadow: 0 18px 40px rgba(74, 222, 128, 0.12), 0 18px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .toast.error {
+    border-color: rgba(251, 113, 133, 0.35);
+    box-shadow: 0 18px 40px rgba(251, 113, 133, 0.12), 0 18px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .toast.info {
+    border-color: rgba(34, 211, 238, 0.35);
+  }
+
+  :global(.toast-icon) {
+    font-size: 1rem;
+    color: var(--accent-cyan);
+  }
+
+  .toast.success :global(.toast-icon) {
+    color: var(--accent-green);
+  }
+
+  .toast.error :global(.toast-icon) {
+    color: var(--accent-rose);
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   /* Subtle grid pattern background */
@@ -1175,6 +1289,127 @@
 
   :global(.save-icon) {
     font-size: 0.9rem;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: grid;
+    place-items: center;
+    z-index: 50;
+    padding: 20px;
+    animation: overlay-in 0.2s ease-out;
+  }
+
+  @keyframes overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .modal {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    animation: modal-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  }
+
+  @keyframes modal-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .modal-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(251, 113, 133, 0.15);
+    display: grid;
+    place-items: center;
+    margin: 0 auto 20px;
+  }
+
+  .modal-icon :global(svg) {
+    font-size: 1.75rem;
+    color: var(--accent-rose);
+  }
+
+  .modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 12px;
+    letter-spacing: -0.01em;
+  }
+
+  .modal-message {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0 0 24px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  .modal-btn-cancel {
+    padding: 10px 20px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .modal-btn-cancel:hover {
+    background: var(--bg-surface);
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+
+  .modal-btn-confirm {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    background: var(--accent-rose);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .modal-btn-confirm:hover {
+    background: #f43f5e;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(251, 113, 133, 0.35);
+  }
+
+  .modal-btn-confirm :global(svg) {
+    font-size: 1rem;
   }
 
   @media (max-width: 768px) {
