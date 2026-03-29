@@ -20,6 +20,7 @@
 
   type AppSettings = {
     imgchestApiKey: string;
+    githubToken: string;
     githubOwner: string;
     githubRepo: string;
     githubBranch: string;
@@ -122,10 +123,15 @@
   // Settings state
   let settings = $state({
     imgchestApiKey: "",
+    githubToken: "",
     githubOwner: "",
     githubRepo: "",
     githubBranch: "main",
   } satisfies AppSettings);
+
+  // Password visibility toggles
+  let showImgchestKey = $state(false);
+  let showGithubToken = $state(false);
 
   onMount(() => {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
@@ -255,10 +261,24 @@
             <h3>ImgChest</h3>
           </div>
           <p class="card-desc">Image hosting API for manga covers</p>
-          <div class="input-group">
+          <div class="input-row password-input">
             <label class="input-label">API Key</label>
-            <input bind:value={settings.imgchestApiKey} class="setting-input" placeholder="Enter your API key" type="password" />
+            <div class="input-wrapper">
+              <input 
+                bind:value={settings.imgchestApiKey} 
+                class="setting-input" 
+                placeholder="Enter your API key" 
+                type={showImgchestKey ? "text" : "password"} 
+              />
+              <button class="toggle-password" type="button" onclick={() => showImgchestKey = !showImgchestKey}>
+                <Icon icon={showImgchestKey ? "ph:eye-slash" : "ph:eye"} />
+              </button>
+            </div>
           </div>
+          <button class="save-btn" type="button">
+            <Icon icon="ph:floppy-disk" class="save-icon" />
+            Save
+          </button>
         </div>
 
         <div class="settings-card" class:visible={mounted} style="transition-delay: 0.12s">
@@ -267,20 +287,38 @@
             <h3>GitHub</h3>
           </div>
           <p class="card-desc">Repository for syncing manga data</p>
-          <div class="input-stack">
-            <div class="input-group">
+          <div class="input-list">
+            <div class="input-row">
+              <label class="input-label">Personal Access Token</label>
+              <div class="input-wrapper">
+                <input 
+                  bind:value={settings.githubToken} 
+                  class="setting-input" 
+                  placeholder="ghp_xxxxxxxxxxxx" 
+                  type={showGithubToken ? "text" : "password"} 
+                />
+                <button class="toggle-password" type="button" onclick={() => showGithubToken = !showGithubToken}>
+                  <Icon icon={showGithubToken ? "ph:eye-slash" : "ph:eye"} />
+                </button>
+              </div>
+            </div>
+            <div class="input-row">
               <label class="input-label">Repository Owner</label>
               <input bind:value={settings.githubOwner} class="setting-input" placeholder="username or org" />
             </div>
-            <div class="input-group">
+            <div class="input-row">
               <label class="input-label">Repository Name</label>
               <input bind:value={settings.githubRepo} class="setting-input" placeholder="my-manga-repo" />
             </div>
-            <div class="input-group">
+            <div class="input-row">
               <label class="input-label">Branch</label>
               <input bind:value={settings.githubBranch} class="setting-input" placeholder="main" />
             </div>
           </div>
+          <button class="save-btn" type="button">
+            <Icon icon="ph:floppy-disk" class="save-icon" />
+            Save
+          </button>
         </div>
 
         <div class="settings-card about-card" class:visible={mounted} style="transition-delay: 0.16s">
@@ -759,10 +797,48 @@
     gap: 6px;
   }
 
-  .input-stack {
+  .input-list {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
+  }
+
+  .input-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .save-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    margin-top: 20px;
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, #0891b2 100%);
+    border: none;
+    border-radius: 8px;
+    color: var(--bg-deep);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .save-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(34, 211, 238, 0.3);
+  }
+
+  .save-btn:active {
+    transform: translateY(0);
+  }
+
+  :global(.save-icon) {
+    font-size: 1rem;
   }
 
   .input-label {
@@ -773,10 +849,46 @@
     letter-spacing: 0.05em;
   }
 
+  .input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-wrapper .setting-input {
+    padding-right: 44px;
+    border-radius: 4px;
+  }
+
+  .toggle-password {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+  }
+
+  .toggle-password:hover {
+    color: var(--text-secondary);
+    background: var(--bg-surface);
+  }
+
+  .toggle-password :global(svg) {
+    font-size: 1.1rem;
+  }
+
   .setting-input {
     width: 100%;
-    padding: 12px 14px;
-    border-radius: 10px;
+    padding: 14px 16px;
+    border-radius: 4px;
     background: var(--bg-elevated);
     border: 1px solid var(--border-subtle);
     color: var(--text-primary);
