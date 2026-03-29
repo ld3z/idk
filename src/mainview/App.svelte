@@ -44,6 +44,8 @@
   let rpc: any;
   let settingsDbPath = $state("");
   let saveStatus = $state<"idle" | "saved">("idle");
+  let hasUnsavedChanges = $state(false);
+  let originalSettings = $state<AppSettings | null>(null);
 
   let mounted = $state(false);
   onMount(() => {
@@ -163,16 +165,107 @@
     const stored = await rpc.request.getSettings();
     if (stored) {
       settings = { ...settings, ...stored.settings };
+      originalSettings = { ...stored.settings };
       settingsDbPath = stored.dbPath;
+    }
+  });
+
+  // Track changes to settings
+  $effect(() => {
+    if (originalSettings) {
+      const hasChanges = 
+        settings.imgchestApiKey !== originalSettings.imgchestApiKey ||
+        settings.githubToken !== originalSettings.githubToken ||
+        settings.githubOwner !== originalSettings.githubOwner ||
+        settings.githubRepo !== originalSettings.githubRepo ||
+        settings.githubBranch !== originalSettings.githubBranch;
+      hasUnsavedChanges = hasChanges;
     }
   });
 
   async function saveSettings() {
     await rpc.request.saveSettings(settings);
+    originalSettings = { ...settings };
+    hasUnsavedChanges = false;
     saveStatus = "saved";
     window.setTimeout(() => {
       saveStatus = "idle";
     }, 1800);
+  }
+
+  // Hidden file input for import
+  let fileInput = $state<HTMLInputElement | null>(null);
+  let importError = $state<string | null>(null);
+
+  function exportSettings() {
+    const exportData = {
+      imgchestApiKey: settings.imgchestApiKey,
+      githubToken: settings.githubToken,
+      githubOwner: settings.githubOwner,
+      githubRepo: settings.githubRepo,
+      githubBranch: settings.githubBranch,
+      exportedAt: new Date().toISOString(),
+      version: APP_VERSION,
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `kaguya-settings-${new Date().toISOString().split("T")[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function triggerImport() {
+    fileInput?.click();
+  }
+
+  async function handleImport(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const imported = JSON.parse(text);
+      
+      // Validate and apply imported settings
+      if (imported.imgchestApiKey !== undefined) settings.imgchestApiKey = imported.imgchestApiKey;
+      if (imported.githubToken !== undefined) settings.githubToken = imported.githubToken;
+      if (imported.githubOwner !== undefined) settings.githubOwner = imported.githubOwner;
+      if (imported.githubRepo !== undefined) settings.githubRepo = imported.githubRepo;
+      if (imported.githubBranch !== undefined) settings.githubBranch = imported.githubBranch;
+      
+      // Auto-save after import
+      await saveSettings();
+    } catch (e) {
+      importError = "Failed to import settings. Invalid file format.";
+      window.setTimeout(() => {
+        importError = null;
+      }, 3000);
+    }
+    
+    // Reset input so same file can be selected again
+    target.value = "";
+  }
+
+  function resetSettings() {
+    if (!confirm("Are you sure you want to reset all settings? This cannot be undone.")) {
+      return;
+    }
+    
+    settings = {
+      imgchestApiKey: "",
+      githubToken: "",
+      githubOwner: "",
+      githubRepo: "",
+      githubBranch: "main",
+    };
+    
+    saveSettings();
   }
 
 </script>
@@ -275,57 +368,85 @@
           <h1 class="page-title">Settings</h1>
           <span class="item-count">Configuration</span>
         </div>
-        <button class="global-save-btn" type="button" onclick={saveSettings}>
-          <Icon icon="ph:floppy-disk" class="save-icon" />
-          {saveStatus === "saved" ? "Saved" : "Save Changes"}
-        </button>
+        <div class="header-actions">
+          <button class="header-btn" type="button" title="Export Settings" onclick={exportSettings}>
+            <Icon icon="ph:export" class="action-icon" />
+          </button>
+          <button class="header-btn" type="button" title="Import Settings" onclick={triggerImport}>
+            <Icon icon="ph:download-simple" class="action-icon" />
+          </button>
+          <input 
+            type="file" 
+            bind:this={fileInput} 
+            accept=".json" 
+            style="display: none" 
+            onchange={handleImport}
+          />
+          {#if hasUnsavedChanges || saveStatus === "saved"}
+            <button class="global-save-btn" class:saved={saveStatus === "saved"} type="button" onclick={saveSettings}>
+              <Icon icon={saveStatus === "saved" ? "ph:check" : "ph:floppy-disk"} class="save-icon" />
+              {saveStatus === "saved" ? "Saved" : "Save"}
+            </button>
+          {/if}
+        </div>
       </div>
       
-      <div class="settings-grid">
-        <div class="settings-card" class:visible={mounted} style="transition-delay: 0.08s">
-          <div class="card-header">
-            <Icon icon="ph:database" class="card-icon" />
-            <h3>Database</h3>
-          </div>
-          <p class="card-desc">Local settings storage</p>
-          <div class="db-path-display">
-            <span class="path-label">Database Path</span>
-            <code class="path-value">{settingsDbPath || "Loading..."}</code>
-          </div>
+      {#if importError}
+        <div class="import-error" class:visible={importError}>
+          <Icon icon="ph:warning-circle" class="error-icon" />
+          {importError}
         </div>
-
-        <div class="settings-card" class:visible={mounted} style="transition-delay: 0.1s">
-          <div class="card-header">
-            <Icon icon="ph:cloud-arrow-up" class="card-icon" />
-            <h3>ImgChest</h3>
+      {/if}
+      
+      <div class="settings-list">
+        <!-- Database Section -->
+        <div class="settings-section" class:visible={mounted} style="transition-delay: 0.08s">
+          <div class="section-header">
+            <Icon icon="ph:database" class="section-icon" />
+            <span class="section-title">Database</span>
           </div>
-          <p class="card-desc">Image hosting API for manga covers</p>
-          <div class="input-row password-input">
-            <label class="input-label">API Key</label>
-            <div class="input-wrapper">
-              <input 
-                bind:value={settings.imgchestApiKey} 
-                class="setting-input" 
-                placeholder="Enter your API key" 
-                type={showImgchestKey ? "text" : "password"} 
-              />
-              <button class="toggle-password" type="button" onclick={() => showImgchestKey = !showImgchestKey}>
-                <Icon icon={showImgchestKey ? "ph:eye-slash" : "ph:eye"} />
-              </button>
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Database Path</span>
+              <code class="setting-value">{settingsDbPath || "Loading..."}</code>
             </div>
           </div>
         </div>
 
-        <div class="settings-card" class:visible={mounted} style="transition-delay: 0.12s">
-          <div class="card-header">
-            <Icon icon="ph:github-logo" class="card-icon" />
-            <h3>GitHub</h3>
+        <!-- ImgChest Section -->
+        <div class="settings-section" class:visible={mounted} style="transition-delay: 0.1s">
+          <div class="section-header">
+            <Icon icon="ph:cloud-arrow-up" class="section-icon" />
+            <span class="section-title">ImgChest</span>
           </div>
-          <p class="card-desc">Repository for syncing manga data</p>
-          <div class="input-list">
-            <div class="input-row">
-              <label class="input-label">Personal Access Token</label>
-              <div class="input-wrapper">
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">API Key</span>
+              <div class="password-field">
+                <input 
+                  bind:value={settings.imgchestApiKey} 
+                  class="setting-input" 
+                  placeholder="Enter your API key" 
+                  type={showImgchestKey ? "text" : "password"} 
+                />
+                <button class="toggle-password" type="button" onclick={() => showImgchestKey = !showImgchestKey}>
+                  <Icon icon={showImgchestKey ? "ph:eye-slash" : "ph:eye"} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GitHub Section -->
+        <div class="settings-section" class:visible={mounted} style="transition-delay: 0.12s">
+          <div class="section-header">
+            <Icon icon="ph:github-logo" class="section-icon" />
+            <span class="section-title">GitHub</span>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Personal Access Token</span>
+              <div class="password-field">
                 <input 
                   bind:value={settings.githubToken} 
                   class="setting-input" 
@@ -337,35 +458,46 @@
                 </button>
               </div>
             </div>
-            <div class="input-row">
-              <label class="input-label">Repository Owner</label>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Repository Owner</span>
               <input bind:value={settings.githubOwner} class="setting-input" placeholder="username or org" />
             </div>
-            <div class="input-row">
-              <label class="input-label">Repository Name</label>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Repository Name</span>
               <input bind:value={settings.githubRepo} class="setting-input" placeholder="my-manga-repo" />
             </div>
-            <div class="input-row">
-              <label class="input-label">Branch</label>
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Branch</span>
               <input bind:value={settings.githubBranch} class="setting-input" placeholder="main" />
             </div>
           </div>
         </div>
 
-        <div class="settings-card about-card" class:visible={mounted} style="transition-delay: 0.16s">
-          <div class="card-header">
-            <Icon icon="ph:heart-straight" class="card-icon" />
-            <h3>About</h3>
+        <!-- Actions Section -->
+        <div class="settings-section" class:visible={mounted} style="transition-delay: 0.14s">
+          <div class="section-header">
+            <Icon icon="ph:gear" class="section-icon" />
+            <span class="section-title">Actions</span>
           </div>
-          <div class="about-content">
-            <div class="about-logo">
-              <span class="logo-mark">K</span>
-              <div class="logo-text">
-                <span class="app-name">Kaguya</span>
-                <span class="app-version">Version {APP_VERSION}</span>
-              </div>
-            </div>
-            <p class="about-tagline">Manga collection manager</p>
+          <div class="action-buttons">
+            <button class="action-btn-reset" type="button" onclick={resetSettings}>
+              <Icon icon="ph:trash" class="action-btn-icon" />
+              Reset All Settings
+            </button>
+          </div>
+        </div>
+
+        <!-- About Section -->
+        <div class="settings-section about-section" class:visible={mounted} style="transition-delay: 0.16s">
+          <div class="about-minimal">
+            <span class="about-brand">Kaguya</span>
+            <span class="about-version">v{APP_VERSION}</span>
           </div>
         </div>
       </div>
@@ -767,61 +899,7 @@
     margin-bottom: 12px;
   }
 
-  /* Settings Grid */
-  .settings-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 20px;
-    position: relative;
-    z-index: 1;
-  }
-
-  .settings-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: 16px;
-    padding: 24px;
-    opacity: 0;
-    transform: translateY(16px);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .settings-card.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .settings-card:hover {
-    border-color: var(--border-default);
-    transform: translateY(-2px);
-  }
-
-  .card-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-  }
-
-  :global(.card-icon) {
-    font-size: 1.5rem;
-    color: var(--accent-cyan);
-  }
-
-  .card-header h3 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0;
-    letter-spacing: -0.01em;
-  }
-
-  .card-desc {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    margin: 0 0 20px;
-  }
-
+  /* Settings - List Layout */
   .settings-header {
     display: flex;
     justify-content: space-between;
@@ -837,17 +915,42 @@
     transform: translateY(0);
   }
 
-  .global-save-btn {
+  .settings-header .header-actions {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 18px;
+  }
+
+  .header-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.2s ease;
+  }
+
+  .header-btn:hover {
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    border-color: var(--border-default);
+  }
+
+  .global-save-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
     background: linear-gradient(135deg, var(--accent-cyan) 0%, #0891b2 100%);
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     color: var(--bg-deep);
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -862,65 +965,111 @@
     transform: translateY(0);
   }
 
-  .db-path-display {
+  /* Settings List */
+  .import-error {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(251, 113, 133, 0.1);
+    border: 1px solid var(--accent-rose);
+    border-radius: 8px;
+    color: var(--accent-rose);
+    font-size: 0.85rem;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: all 0.3s ease;
+  }
+
+  .import-error.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  :global(.error-icon) {
+    font-size: 1.1rem;
+  }
+
+  .settings-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 12px;
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .settings-section {
+    background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    background: var(--bg-elevated);
+    border-radius: 12px;
+    padding: 16px 20px;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .path-label {
-    font-size: 0.65rem;
+  .settings-section.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  :global(.section-icon) {
+    font-size: 1.1rem;
+    color: var(--accent-cyan);
+  }
+
+  .section-title {
+    font-size: 0.9rem;
     font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
   }
 
-  .path-value {
-    color: var(--text-primary);
-    font-size: 0.78rem;
+  .setting-item {
+    padding: 10px 0;
+  }
+
+  .setting-item + .setting-item {
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .setting-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .setting-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .setting-value {
+    font-size: 0.8rem;
+    color: var(--text-muted);
     font-family: "JetBrains Mono", monospace;
     word-break: break-all;
     white-space: pre-wrap;
   }
 
-  .input-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .input-row {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  :global(.save-icon) {
-    font-size: 1rem;
-  }
-
-  .input-label {
-    font-size: 0.7rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .input-wrapper {
+  .password-field {
     position: relative;
     display: flex;
     align-items: center;
   }
 
-  .input-wrapper .setting-input {
-    padding-right: 44px;
-    border-radius: 4px;
+  .password-field .setting-input {
+    padding-right: 40px;
   }
 
   .toggle-password {
@@ -932,31 +1081,30 @@
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    padding: 6px;
+    padding: 4px;
     display: grid;
     place-items: center;
-    border-radius: 6px;
+    border-radius: 4px;
     transition: all 0.2s ease;
   }
 
   .toggle-password:hover {
     color: var(--text-secondary);
-    background: var(--bg-surface);
   }
 
   .toggle-password :global(svg) {
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
 
   .setting-input {
     width: 100%;
-    padding: 14px 16px;
-    border-radius: 4px;
+    padding: 10px 12px;
+    border-radius: 6px;
     background: var(--bg-elevated);
     border: 1px solid var(--border-subtle);
     color: var(--text-primary);
     font-family: inherit;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     outline: none;
     transition: all 0.2s ease;
   }
@@ -967,59 +1115,66 @@
 
   .setting-input:focus {
     border-color: var(--accent-cyan);
-    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
   }
 
-  /* About card */
-  .about-card {
-    background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(34, 211, 238, 0.05) 100%);
+  .action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
-  .about-content {
-    margin-top: 8px;
-  }
-
-  .about-logo {
+  .action-btn-reset {
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 12px;
+    gap: 8px;
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid var(--accent-rose);
+    border-radius: 6px;
+    color: var(--accent-rose);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
   }
 
-  .logo-mark {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    display: grid;
-    place-items: center;
-    font-weight: 700;
-    font-size: 1.1rem;
-    background: linear-gradient(135deg, var(--accent-cyan) 0%, #0891b2 100%);
-    color: var(--bg-deep);
+  .action-btn-reset:hover {
+    background: rgba(251, 113, 133, 0.1);
   }
 
-  .logo-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .app-name {
+  :global(.action-btn-icon) {
     font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
   }
 
-  .app-version {
+  .about-section {
+    background: transparent;
+    border: 1px solid transparent;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .about-minimal {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .about-brand {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .about-version {
     font-size: 0.75rem;
     color: var(--text-muted);
     font-family: "JetBrains Mono", monospace;
   }
 
-  .about-tagline {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin: 0;
+  :global(.save-icon) {
+    font-size: 0.9rem;
   }
 
   @media (max-width: 768px) {
