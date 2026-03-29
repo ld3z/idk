@@ -34,4 +34,6 @@ const mainWindow = new BrowserWindow({
 	},
 });
 
+mainWindow.setPageZoom(1);
+
 console.log("Svelte app started!");
