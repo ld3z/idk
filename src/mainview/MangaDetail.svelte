@@ -638,7 +638,18 @@
                         {#each urls as url, i}
                           <div class="url-item">
                             <span class="url-index">{i + 1}</span>
-                            <a class="url-link" href={url} target="_blank" rel="noopener">{url}</a>
+                            <div class="url-cell">
+                              <a class="url-link" href={url} target="_blank" rel="noopener">{url}</a>
+                              <figure class="url-thumb" aria-hidden="true">
+                                <img
+                                  src={url}
+                                  alt=""
+                                  loading="lazy"
+                                  decoding="async"
+                                />
+                                <figcaption class="url-thumb-cap">Page {i + 1}</figcaption>
+                              </figure>
+                            </div>
                           </div>
                         {/each}
                       </div>
@@ -1480,9 +1491,14 @@
 
   .url-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
-    padding: 5px 0;
+    padding: 6px 0;
+  }
+
+  .url-cell {
+    flex: 1;
+    min-width: 0;
   }
 
   .url-index {
@@ -1492,6 +1508,7 @@
     min-width: 22px;
     text-align: right;
     flex-shrink: 0;
+    padding-top: 2px;
   }
 
   .url-link {
@@ -1503,6 +1520,46 @@
   }
 
   .url-link:hover { text-decoration: underline; }
+
+  .url-thumb {
+    display: none;
+    margin: 10px 0 0;
+    padding: 0;
+    max-width: min(100%, 300px);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+
+  .url-thumb img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 240px;
+    object-fit: contain;
+    object-position: top center;
+    background: var(--bg-elevated);
+  }
+
+  .url-thumb-cap {
+    margin: 0;
+    padding: 6px 10px 8px;
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-base);
+  }
+
+  .url-item:hover .url-thumb,
+  .url-item:focus-within .url-thumb {
+    display: block;
+  }
 
   .upload-progress-bar {
     position: fixed;
