@@ -1,121 +1,90 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+  import type { MangaEntry } from "../shared/types.ts";
+  import PhPlus from "~icons/ph/plus";
   import PhMagnifyingGlass from "~icons/ph/magnifying-glass";
-  import PhSlidersHorizontal from "~icons/ph/sliders-horizontal";
-
-  type MangaStatus = "Reading" | "Plan to read" | "On hold" | "Completed";
-
-  type Manga = {
-    id: number;
-    title: string;
-    author: string;
-    status: MangaStatus;
-    progress: string;
-    volumes: string;
-    updated: string;
-    color: string;
-    tags: string[];
-  };
+  import PhTrash from "~icons/ph/trash";
+  import PhFolderOpen from "~icons/ph/folder-open";
+  import PhWarningFill from "~icons/ph/warning-fill";
 
   interface Props {
-    mounted: boolean;
+    rpc: any;
+    onSelectManga: (entry: MangaEntry) => void;
   }
 
-  let { mounted }: Props = $props();
+  let { rpc, onSelectManga }: Props = $props();
 
-  const seedLibrary: Manga[] = [
-    {
-      id: 1,
-      title: "Chains of the Moon",
-      author: "M. Aoyama",
-      status: "Reading",
-      progress: "Vol. 8 / 14",
-      volumes: "14 vols",
-      updated: "Updated 2h ago",
-      color: "#2563eb",
-      tags: ["Seinen", "Action"],
-    },
-    {
-      id: 2,
-      title: "Paper Lantern Girl",
-      author: "N. Hoshino",
-      status: "Completed",
-      progress: "Read 12 / 12",
-      volumes: "12 vols",
-      updated: "Finished last week",
-      color: "#059669",
-      tags: ["Romance", "Drama"],
-    },
-    {
-      id: 3,
-      title: "Steel Orchard",
-      author: "K. Teshima",
-      status: "On hold",
-      progress: "Paused at Vol. 4",
-      volumes: "9 vols",
-      updated: "Paused 5 days ago",
-      color: "#7c3aed",
-      tags: ["Sci-Fi", "Mystery"],
-    },
-    {
-      id: 4,
-      title: "Garden of Quiet Stars",
-      author: "R. Yamada",
-      status: "Plan to read",
-      progress: "Queued for next",
-      volumes: "6 vols",
-      updated: "Saved today",
-      color: "#0891b2",
-      tags: ["Slice of life", "Fantasy"],
-    },
-    {
-      id: 5,
-      title: "Rift Runner",
-      author: "S. Kurono",
-      status: "Reading",
-      progress: "Vol. 2 / 11",
-      volumes: "11 vols",
-      updated: "Updated yesterday",
-      color: "#e11d48",
-      tags: ["Adventure", "Shounen"],
-    },
-    {
-      id: 6,
-      title: "Inkbound Library",
-      author: "A. Shira",
-      status: "Completed",
-      progress: "Read 20 / 20",
-      volumes: "20 vols",
-      updated: "Completed 3 months ago",
-      color: "#d97706",
-      tags: ["Fantasy", "Mystery"],
-    },
-  ];
-
-  let library = $state(seedLibrary);
-  let activeFilter = $state<MangaStatus | "All">("All");
-
-  const filters: (MangaStatus | "All")[] = ["All", "Reading", "Completed", "On hold", "Plan to read"];
+  let library = $state<MangaEntry[]>([]);
+  let loading = $state(true);
+  let searchQuery = $state("");
+  let addingManga = $state(false);
+  let confirmRemoveId = $state<number | null>(null);
 
   let filteredLibrary = $derived(
-    activeFilter === "All" ? library : library.filter((m) => m.status === activeFilter)
+    searchQuery.trim()
+      ? library.filter((m) =>
+          m.manga.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.manga.author.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : library
   );
 
-  function statusColor(status: MangaStatus) {
-    switch (status) {
-      case "Reading": return "var(--accent-blue)";
-      case "Completed": return "var(--accent-green)";
-      case "On hold": return "var(--accent-amber)";
-      case "Plan to read": return "var(--text-muted)";
+  async function loadLibrary() {
+    if (!rpc) return;
+    loading = true;
+    try {
+      library = await rpc.request.listManga();
+    } catch (e) {
+      console.error("Failed to load library:", e);
+    }
+    loading = false;
+  }
+
+  onMount(() => {
+    loadLibrary();
+  });
+
+  async function addManga() {
+    if (addingManga) return;
+    addingManga = true;
+    try {
+      const result = await rpc.request.pickFolder();
+      if (!result) return;
+      await rpc.request.addMangaFolder({ folderPath: result.path });
+      await loadLibrary();
+    } catch (e: any) {
+      console.error("Failed to add manga:", e);
+    } finally {
+      addingManga = false;
     }
   }
 
-  function statusBg(status: MangaStatus) {
-    switch (status) {
-      case "Reading": return "var(--accent-blue-light)";
-      case "Completed": return "var(--accent-green-light)";
-      case "On hold": return "var(--accent-amber-light)";
-      case "Plan to read": return "var(--bg-elevated)";
+  async function removeManga(id: number) {
+    try {
+      await rpc.request.removeManga({ id });
+      confirmRemoveId = null;
+      await loadLibrary();
+    } catch (e) {
+      console.error("Failed to remove manga:", e);
     }
+  }
+
+  function formatDate(ts: string): string {
+    if (!ts) return "";
+    const d = new Date(Number(ts) * 1000);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function getLastUpdated(entry: MangaEntry): string {
+    const chapters = entry.manga.chapters;
+    if (!chapters || Object.keys(chapters).length === 0) return "";
+    let latest = 0;
+    for (const ch of Object.values(chapters)) {
+      const t = Number(ch.last_updated);
+      if (t > latest) latest = t;
+    }
+    return latest ? formatDate(String(latest)) : "";
   }
 </script>
 
@@ -123,59 +92,117 @@
   <div class="page-header">
     <div class="header-text">
       <h1 class="page-title">Library</h1>
-      <p class="page-subtitle">{filteredLibrary.length} titles</p>
+      <p class="page-subtitle">{library.length} title{library.length !== 1 ? "s" : ""}</p>
     </div>
     <div class="header-actions">
-      <button class="icon-btn" type="button" title="Search">
-        <PhMagnifyingGlass class="icon-btn-svg" />
-      </button>
-      <button class="icon-btn" type="button" title="Filter">
-        <PhSlidersHorizontal class="icon-btn-svg" />
+      <div class="search-wrap">
+        <PhMagnifyingGlass class="search-icon" />
+        <input
+          class="search-input"
+          type="text"
+          placeholder="Search..."
+          bind:value={searchQuery}
+        />
+      </div>
+      <button class="add-btn" type="button" onclick={addManga} disabled={addingManga}>
+        <PhPlus class="btn-icon" />
+        {addingManga ? "Selecting..." : "Add Manga"}
       </button>
     </div>
   </div>
 
-  <div class="filter-bar">
-    {#each filters as f}
-      <button
-        class="filter-chip"
-        class:active={activeFilter === f}
-        type="button"
-        onclick={() => (activeFilter = f)}
-      >
-        {f}
-        {#if f !== "All"}
-          <span class="filter-count">{library.filter((m) => m.status === f).length}</span>
-        {/if}
-      </button>
-    {/each}
-  </div>
-
-  <div class="cards-grid">
-    {#each filteredLibrary as manga}
-      <button class="manga-card" type="button">
-        <div class="card-cover" style={`background: ${manga.color}`}>
-          <span class="card-initial">{manga.title[0]}</span>
+  {#if loading}
+    <div class="empty-state">
+      <p class="empty-text">Loading library...</p>
+    </div>
+  {:else if filteredLibrary.length === 0}
+    <div class="empty-state">
+      {#if library.length === 0}
+        <PhFolderOpen class="empty-icon" />
+        <p class="empty-title">No manga yet</p>
+        <p class="empty-text">Add a manga folder to get started.</p>
+        <button class="add-btn" type="button" onclick={addManga} disabled={addingManga}>
+          <PhPlus class="btn-icon" />
+          {addingManga ? "Selecting..." : "Add Manga"}
+        </button>
+      {:else}
+        <p class="empty-text">No results for "{searchQuery}"</p>
+      {/if}
+    </div>
+  {:else}
+    <div class="cards-grid">
+      {#each filteredLibrary as entry}
+        <div class="manga-card" class:unavailable={!entry.available}>
+          <button
+            class="card-clickable"
+            type="button"
+            onclick={() => onSelectManga(entry)}
+          >
+            <div class="card-cover">
+              {#if entry.manga.cover}
+                <img
+                  src={entry.manga.cover}
+                  alt={entry.manga.title}
+                  class="card-cover-img"
+                  loading="lazy"
+                />
+              {:else}
+                <span class="card-initial">{entry.manga.title[0] ?? "?"}</span>
+              {/if}
+              {#if !entry.available}
+                <div class="card-unavailable-badge">
+                  <PhWarningFill />
+                  Unavailable
+                </div>
+              {/if}
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">{entry.manga.title}</h3>
+              <p class="card-author">{entry.manga.author || entry.manga.artist || "Unknown"}</p>
+              <div class="card-meta">
+                <span class="card-chapters">{entry.chapterCount} ch.</span>
+                {#if getLastUpdated(entry)}
+                  <span class="card-updated">{getLastUpdated(entry)}</span>
+                {/if}
+              </div>
+            </div>
+          </button>
+          <button
+            class="card-remove-btn"
+            type="button"
+            title="Remove from library"
+            onclick={(e) => { e.stopPropagation(); confirmRemoveId = entry.id; }}
+          >
+            <PhTrash />
+          </button>
         </div>
-        <div class="card-body">
-          <h3 class="card-title">{manga.title}</h3>
-          <p class="card-author">{manga.author}</p>
-          <div class="card-footer">
-            <span class="card-status" style={`color: ${statusColor(manga.status)}; background: ${statusBg(manga.status)}`}>
-              {manga.status}
-            </span>
-            <span class="card-volumes">{manga.volumes}</span>
-          </div>
-          <div class="card-tags">
-            {#each manga.tags as tag}
-              <span class="card-tag">{tag}</span>
-            {/each}
-          </div>
-        </div>
-      </button>
-    {/each}
-  </div>
+      {/each}
+    </div>
+  {/if}
 </div>
+
+{#if confirmRemoveId !== null}
+  {@const manga = library.find((m) => m.id === confirmRemoveId)}
+  <div class="modal-overlay" role="dialog" aria-modal="true" onclick={() => (confirmRemoveId = null)}>
+    <div class="modal" onclick={(e) => e.stopPropagation()}>
+      <div class="modal-icon-wrap">
+        <PhWarningFill />
+      </div>
+      <h2 class="modal-title">Remove from Library?</h2>
+      <p class="modal-message">
+        Remove <strong>{manga?.manga.title ?? "this manga"}</strong> from your library?
+        The folder and files on disk will not be deleted.
+      </p>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" type="button" onclick={() => (confirmRemoveId = null)}>Cancel</button>
+        <button class="modal-btn-danger" type="button" onclick={() => confirmRemoveId !== null && removeManga(confirmRemoveId)}>
+          <PhTrash />
+          Remove
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .library-page {
@@ -188,6 +215,8 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
   }
 
   .page-title {
@@ -207,76 +236,102 @@
 
   .header-actions {
     display: flex;
-    gap: 6px;
+    gap: 8px;
+    align-items: center;
   }
 
-  .icon-btn {
-    width: 38px;
-    height: 38px;
+  .search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  :global(.search-icon) {
+    position: absolute;
+    left: 10px;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .search-input {
+    padding: 8px 12px 8px 32px;
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-secondary);
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-    transition: all 0.15s ease;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .icon-btn:hover {
-    background: var(--bg-elevated);
-    border-color: var(--border-default);
     color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    width: 180px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
-  :global(.icon-btn-svg) {
-    font-size: 1.1rem;
+  .search-input::placeholder { color: var(--text-muted); }
+
+  .search-input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px var(--accent-blue-light);
   }
 
-  .filter-bar {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-
-  .filter-chip {
+  .add-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 14px;
-    border: 1px solid var(--border-subtle);
-    border-radius: 999px;
-    background: var(--bg-surface);
-    color: var(--text-secondary);
+    padding: 8px 16px;
+    background: var(--accent-blue);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
     font-family: inherit;
     font-size: 0.8rem;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background 0.15s ease;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
   }
 
-  .filter-chip:hover {
-    border-color: var(--border-default);
+  .add-btn:hover { background: var(--accent-blue-hover); }
+
+  .add-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  :global(.btn-icon) { font-size: 0.95rem; }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 20px;
+    text-align: center;
+  }
+
+  :global(.empty-icon) {
+    font-size: 3rem;
+    color: var(--text-muted);
+    opacity: 0.5;
+  }
+
+  .empty-title {
+    font-size: 1.1rem;
+    font-weight: 600;
     color: var(--text-primary);
+    margin: 0;
   }
 
-  .filter-chip.active {
-    background: var(--accent-blue);
-    border-color: var(--accent-blue);
-    color: #fff;
+  .empty-text {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0;
   }
 
-  .filter-count {
-    font-family: var(--mono);
-    font-size: 0.7rem;
-    opacity: 0.7;
-  }
-
-  .filter-chip.active .filter-count {
-    opacity: 0.85;
-  }
-
+  /* Cards grid */
   .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -284,13 +339,11 @@
   }
 
   .manga-card {
+    position: relative;
     background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    cursor: pointer;
-    text-align: left;
-    padding: 0;
     box-shadow: var(--shadow-sm);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
   }
@@ -301,23 +354,61 @@
     transform: translateY(-3px);
   }
 
+  .manga-card.unavailable { opacity: 0.6; }
+
+  .card-clickable {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+  }
+
   .card-cover {
-    height: 140px;
+    position: relative;
+    height: 180px;
+    background: var(--bg-elevated);
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+  }
+
+  .card-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .card-initial {
     font-size: 2.5rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.85);
-    letter-spacing: -0.03em;
+    color: var(--text-muted);
+    opacity: 0.4;
   }
 
-  .card-body {
-    padding: 14px 16px 16px;
+  .card-unavailable-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: var(--accent-amber-light);
+    color: var(--accent-amber);
+    font-size: 0.65rem;
+    font-weight: 600;
+    border-radius: 999px;
   }
+
+  .card-unavailable-badge :global(svg) { font-size: 0.75rem; }
+
+  .card-body { padding: 14px 16px 16px; }
 
   .card-title {
     font-size: 0.9rem;
@@ -334,47 +425,163 @@
     font-size: 0.75rem;
     color: var(--text-muted);
     margin: 0 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .card-footer {
+  .card-meta {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
   }
 
-  .card-status {
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 999px;
-  }
-
-  .card-volumes {
+  .card-chapters {
     font-family: var(--mono);
     font-size: 0.7rem;
-    color: var(--text-muted);
-  }
-
-  .card-tags {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-  }
-
-  .card-tag {
-    font-size: 0.65rem;
+    color: var(--accent-blue);
+    font-weight: 600;
     padding: 2px 8px;
+    background: var(--accent-blue-light);
     border-radius: 999px;
-    background: var(--bg-elevated);
+  }
+
+  .card-updated {
+    font-family: var(--mono);
+    font-size: 0.65rem;
     color: var(--text-muted);
-    font-weight: 500;
+  }
+
+  .card-remove-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  }
+
+  .manga-card:hover .card-remove-btn { opacity: 1; }
+
+  .card-remove-btn:hover {
+    color: var(--accent-rose);
+    background: var(--accent-rose-light);
+    border-color: var(--accent-rose);
+  }
+
+  .card-remove-btn :global(svg) { font-size: 0.85rem; }
+
+  /* Modals */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    display: grid;
+    place-items: center;
+    z-index: 50;
+    padding: 20px;
+  }
+
+  .modal {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .modal-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 10px;
+    letter-spacing: -0.02em;
+  }
+
+  .modal-message {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0 0 18px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .modal-btn-cancel {
+    padding: 9px 20px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .modal-btn-cancel:hover {
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+
+  .modal-btn-danger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 20px;
+    background: var(--accent-rose);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .modal-btn-danger:hover { background: #be123c; }
+
+  .modal-btn-danger :global(svg) { font-size: 0.95rem; }
+
+  .modal-icon-wrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--accent-rose-light);
+    display: grid;
+    place-items: center;
+    margin: 0 auto 18px;
+  }
+
+  .modal-icon-wrap :global(svg) {
+    font-size: 1.5rem;
+    color: var(--accent-rose);
   }
 
   @media (max-width: 640px) {
     .cards-grid {
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+
+    .header-actions {
+      flex-wrap: wrap;
     }
   }
 </style>

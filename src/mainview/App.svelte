@@ -2,8 +2,10 @@
   import { onMount } from "svelte";
   import { APP_VERSION } from "../shared/version.ts";
   import { Electroview } from "electrobun/view";
+  import type { MangaEntry } from "../shared/types.ts";
   import Settings from "./Settings.svelte";
   import Library from "./Library.svelte";
+  import MangaDetail from "./MangaDetail.svelte";
   import PhBooks from "~icons/ph/books";
   import PhBooksFill from "~icons/ph/books-fill";
   import PhGear from "~icons/ph/gear";
@@ -14,12 +16,12 @@
   import PhSun from "~icons/ph/sun";
   import PhMoon from "~icons/ph/moon";
 
-  let rpc: any;
+  let rpc = $state<any>(null);
   let toast = $state<{ kind: "success" | "error" | "info"; message: string } | null>(null);
 
-  let mounted = $state(true);
-
   let dark = $state(false);
+
+  let selectedManga = $state<MangaEntry | null>(null);
 
   function applyTheme(isDark: boolean) {
     document.documentElement.classList.toggle("dark", isDark);
@@ -40,19 +42,29 @@
 
   let settingsComponent: any;
 
+  function handleSelectManga(entry: MangaEntry) {
+    selectedManga = entry;
+  }
+
+  function handleBackToLibrary() {
+    selectedManga = null;
+  }
+
   onMount(async () => {
-    rpc = Electroview.defineRPC({
+    const _rpc = Electroview.defineRPC({
       handlers: {
         requests: {},
         messages: {},
       },
     });
 
-    new Electroview({ rpc });
+    new Electroview({ rpc: _rpc });
 
-    const { theme } = await rpc.request.getTheme();
+    const { theme } = await _rpc.request.getTheme();
     dark = theme === "dark";
     applyTheme(dark);
+
+    rpc = _rpc;
   });
 
 </script>
@@ -78,7 +90,7 @@
             class="nav-link"
             class:active={activeNav === item.name}
             type="button"
-            onclick={() => (activeNav = item.name)}
+            onclick={() => { activeNav = item.name; selectedManga = null; }}
           >
             {#if activeNav === item.name}
               <item.iconActive class="nav-link-icon" />
@@ -118,11 +130,15 @@
 
   <main class="main-content">
     {#if activeNav === "Library"}
-      <Library {mounted} />
+      {#if selectedManga && rpc}
+        <MangaDetail {rpc} entry={selectedManga} onBack={handleBackToLibrary} />
+      {:else if rpc}
+        <Library {rpc} onSelectManga={handleSelectManga} />
+      {/if}
     {/if}
 
     {#if activeNav === "Settings"}
-      <Settings bind:this={settingsComponent} {rpc} {mounted} />
+      <Settings bind:this={settingsComponent} {rpc} mounted={true} />
     {/if}
   </main>
 </div>
