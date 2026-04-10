@@ -39,6 +39,8 @@
 
   let uploadingChapter = $state<string | null>(null);
   let uploadStatus = $state<string | null>(null);
+  let newGroupUpload = $state<{ chapterNum: string } | null>(null);
+  let newGroupName = $state("");
 
   let confirmRemoveChapter = $state<string | null>(null);
 
@@ -134,6 +136,35 @@
     } catch (e) {
       console.error("Failed to remove chapter:", e);
     }
+  }
+
+  function startChapterUpload(chapterNum: string) {
+    const ch = chapters[chapterNum];
+    const groupKeys = ch ? Object.keys(ch.groups) : [];
+    if (groupKeys.length === 1) {
+      handleUpload(chapterNum, groupKeys[0]);
+    } else if (groupKeys.length === 0) {
+      newGroupUpload = { chapterNum };
+      newGroupName = "";
+      expandedChapter = chapterNum;
+    } else {
+      expandedChapter = chapterNum;
+    }
+  }
+
+  async function handleNewGroupUpload() {
+    if (!newGroupUpload || !newGroupName.trim()) return;
+    const { chapterNum } = newGroupUpload;
+    const groupName = newGroupName.trim();
+    newGroupUpload = null;
+    newGroupName = "";
+
+    if (chapters[chapterNum] && !chapters[chapterNum].groups[groupName]) {
+      chapters[chapterNum].groups[groupName] = [];
+      chapters = { ...chapters };
+    }
+
+    await handleUpload(chapterNum, groupName);
   }
 
   async function handleUpload(chapterNum: string, groupName: string) {
@@ -334,6 +365,15 @@
                 </span>
               </button>
               <button
+                class="chapter-upload-btn"
+                type="button"
+                title="Upload images"
+                onclick={(e) => { e.stopPropagation(); startChapterUpload(chNum); }}
+                disabled={uploadingChapter === chNum}
+              >
+                <PhUploadSimple />
+              </button>
+              <button
                 class="chapter-remove-btn"
                 type="button"
                 title="Remove chapter"
@@ -369,9 +409,27 @@
                       </div>
                     </div>
                   {/each}
-                  {#if Object.keys(ch.groups).length === 0}
-                    <p class="empty-text" style="padding: 12px 0">No groups yet. Add images to create one.</p>
-                  {/if}
+                  <div class="add-group-row">
+                    {#if newGroupUpload?.chapterNum === chNum}
+                      <input
+                        class="new-group-input"
+                        type="text"
+                        placeholder="Group name"
+                        bind:value={newGroupName}
+                        onkeydown={(e) => e.key === "Enter" && handleNewGroupUpload()}
+                      />
+                      <button class="upload-btn" type="button" onclick={handleNewGroupUpload} disabled={!newGroupName.trim()}>
+                        <PhUploadSimple />
+                        Upload
+                      </button>
+                      <button class="btn-cancel-sm" type="button" onclick={() => (newGroupUpload = null)}>Cancel</button>
+                    {:else}
+                      <button class="upload-btn" type="button" onclick={() => { newGroupUpload = { chapterNum: chNum }; newGroupName = ""; }}>
+                        <PhPlus />
+                        Upload to new group
+                      </button>
+                    {/if}
+                  </div>
                 </div>
               {/if}
             </div>
@@ -755,9 +813,9 @@
   .chapter-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     width: 100%;
-    padding: 12px 22px;
+    padding: 14px 88px 14px 22px;
     border: none;
     background: none;
     cursor: pointer;
@@ -769,7 +827,7 @@
 
   .chapter-row:hover { background: var(--bg-hover); }
 
-  .chapter-caret { color: var(--text-muted); display: grid; place-items: center; }
+  .chapter-caret { color: var(--text-muted); display: grid; place-items: center; flex-shrink: 0; }
   .chapter-caret :global(svg) { font-size: 0.85rem; }
 
   .chapter-num {
@@ -777,6 +835,7 @@
     font-size: 0.85rem;
     color: var(--text-primary);
     min-width: 60px;
+    flex-shrink: 0;
   }
 
   .chapter-title {
@@ -786,45 +845,74 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
   }
 
   .chapter-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     margin-left: auto;
     flex-shrink: 0;
   }
 
   .chapter-group-tag {
     font-size: 0.65rem;
-    padding: 2px 8px;
+    padding: 3px 10px;
     background: var(--bg-elevated);
     border: 1px solid var(--border-subtle);
     border-radius: 999px;
     color: var(--text-muted);
     font-weight: 500;
+    white-space: nowrap;
   }
 
   .chapter-img-count {
     font-family: var(--mono);
     font-size: 0.7rem;
     color: var(--text-muted);
+    white-space: nowrap;
   }
 
   .chapter-date {
     font-family: var(--mono);
     font-size: 0.65rem;
     color: var(--text-muted);
+    white-space: nowrap;
   }
+
+  .chapter-upload-btn {
+    position: absolute;
+    right: 52px;
+    top: 11px;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease;
+    z-index: 2;
+  }
+
+  .chapter-item:hover .chapter-upload-btn { opacity: 1; }
+
+  .chapter-upload-btn:hover { color: var(--accent-blue); }
+
+  .chapter-upload-btn:disabled { opacity: 0.3; pointer-events: none; }
+
+  .chapter-upload-btn :global(svg) { font-size: 0.9rem; }
 
   .chapter-remove-btn {
     position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 26px;
-    height: 26px;
+    right: 18px;
+    top: 11px;
+    width: 30px;
+    height: 30px;
     border-radius: var(--radius-sm);
     background: transparent;
     border: none;
@@ -841,23 +929,29 @@
 
   .chapter-remove-btn:hover { color: var(--accent-rose); }
 
-  .chapter-remove-btn :global(svg) { font-size: 0.8rem; }
+  .chapter-remove-btn :global(svg) { font-size: 0.9rem; }
 
   .chapter-detail {
-    padding: 0 22px 16px 42px;
+    padding: 4px 22px 20px 46px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 
   .group-section {
-    margin-bottom: 12px;
+    background: var(--bg-base);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
   }
-
-  .group-section:last-child { margin-bottom: 0; }
 
   .group-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .group-name {
@@ -875,14 +969,14 @@
   .upload-btn {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    background: var(--bg-elevated);
+    gap: 5px;
+    padding: 5px 12px;
+    background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     font-family: inherit;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     font-weight: 500;
     cursor: pointer;
     margin-left: auto;
@@ -892,6 +986,7 @@
   .upload-btn:hover {
     border-color: var(--accent-blue);
     color: var(--accent-blue);
+    background: var(--accent-blue-light);
   }
 
   .upload-btn:disabled {
@@ -901,25 +996,65 @@
 
   .upload-btn :global(svg) { font-size: 0.8rem; }
 
+  .add-group-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  .new-group-input {
+    padding: 6px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.75rem;
+    width: 180px;
+    outline: none;
+  }
+
+  .new-group-input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px var(--accent-blue-light);
+  }
+
+  .new-group-input::placeholder { color: var(--text-muted); }
+
+  .btn-cancel-sm {
+    padding: 5px 12px;
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+
+  .btn-cancel-sm:hover { color: var(--text-secondary); border-color: var(--border-default); }
+
   .url-list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
   }
 
   .url-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 0;
+    gap: 10px;
+    padding: 5px 0;
   }
 
   .url-index {
     font-family: var(--mono);
     font-size: 0.65rem;
     color: var(--text-muted);
-    min-width: 20px;
+    min-width: 22px;
     text-align: right;
+    flex-shrink: 0;
   }
 
   .url-link {
