@@ -1,6 +1,17 @@
 <script lang="ts">
-  import Icon from "@iconify/svelte";
   import { APP_VERSION } from "../shared/version.ts";
+  import PhExport from "~icons/ph/export";
+  import PhDownloadSimple from "~icons/ph/download-simple";
+  import PhWarningCircleFill from "~icons/ph/warning-circle-fill";
+  import PhDatabaseFill from "~icons/ph/database-fill";
+  import PhCloudArrowUpFill from "~icons/ph/cloud-arrow-up-fill";
+  import PhGithubLogoFill from "~icons/ph/github-logo-fill";
+  import PhWarningFill from "~icons/ph/warning-fill";
+  import PhTrash from "~icons/ph/trash";
+  import PhCheck from "~icons/ph/check";
+  import PhFloppyDisk from "~icons/ph/floppy-disk";
+  import PhEye from "~icons/ph/eye";
+  import PhEyeSlash from "~icons/ph/eye-slash";
 
   type AppSettings = {
     imgchestApiKey: string;
@@ -38,7 +49,6 @@
   let toast = $state<{ kind: "success" | "error" | "info"; message: string } | null>(null);
   let showResetModal = $state(false);
 
-  // Lock body scroll when modal is open
   $effect(() => {
     if (showResetModal) {
       document.body.style.overflow = "hidden";
@@ -47,15 +57,12 @@
     }
   });
 
-  // Password visibility toggles
   let showImgchestKey = $state(false);
   let showGithubToken = $state(false);
 
-  // Hidden file input for import
   let fileInput = $state<HTMLInputElement | null>(null);
   let importError = $state<string | null>(null);
 
-  // Initialize settings from storage when rpc is available
   $effect(() => {
     if (rpc) {
       (async () => {
@@ -69,7 +76,6 @@
     }
   });
 
-  // Settings state
   let settings = $state({
     imgchestApiKey: "",
     githubToken: "",
@@ -78,7 +84,6 @@
     githubBranch: "main",
   } satisfies AppSettings);
 
-  // Track changes to settings
   $effect(() => {
     if (originalSettings) {
       const hasChanges =
@@ -140,14 +145,12 @@
       const text = await file.text();
       const imported = JSON.parse(text);
 
-      // Validate and apply imported settings
       if (imported.imgchestApiKey !== undefined) settings.imgchestApiKey = imported.imgchestApiKey;
       if (imported.githubToken !== undefined) settings.githubToken = imported.githubToken;
       if (imported.githubOwner !== undefined) settings.githubOwner = imported.githubOwner;
       if (imported.githubRepo !== undefined) settings.githubRepo = imported.githubRepo;
       if (imported.githubBranch !== undefined) settings.githubBranch = imported.githubBranch;
 
-      // Auto-save after import
       await saveSettings();
     } catch (e) {
       importError = "Failed to import settings. Invalid file format.";
@@ -158,7 +161,6 @@
       }, 3000);
     }
 
-    // Reset input so same file can be selected again
     target.value = "";
   }
 
@@ -185,18 +187,20 @@
   }
 </script>
 
-<div class="settings-wrapper">
-  <div class="settings-header" class:visible={mounted}>
-    <div class="header-left">
+<div class="settings-page">
+  <div class="page-header">
+    <div class="header-text">
       <h1 class="page-title">Settings</h1>
-      <span class="item-count">Configuration</span>
+      <p class="page-subtitle">Manage integrations and application configuration.</p>
     </div>
     <div class="header-actions">
-      <button class="header-btn" type="button" title="Export Settings" onclick={exportSettings}>
-        <Icon icon="ph:export" class="action-icon" />
+      <button class="action-btn-outline" type="button" title="Export" onclick={exportSettings}>
+        <PhExport class="btn-icon" />
+        Export
       </button>
-      <button class="header-btn" type="button" title="Import Settings" onclick={triggerImport}>
-        <Icon icon="ph:download-simple" class="action-icon" />
+      <button class="action-btn-outline" type="button" title="Import" onclick={triggerImport}>
+        <PhDownloadSimple class="btn-icon" />
+        Import
       </button>
       <input
         type="file"
@@ -206,132 +210,154 @@
         onchange={handleImport}
       />
       {#if hasUnsavedChanges || saveStatus === "saved"}
-        <button class="global-save-btn" class:saved={saveStatus === "saved"} type="button" onclick={saveSettings}>
-          <Icon icon={saveStatus === "saved" ? "ph:check" : "ph:floppy-disk"} class="save-icon" />
-          {saveStatus === "saved" ? "Saved" : "Save"}
+        <button class="save-btn" class:saved={saveStatus === "saved"} type="button" onclick={saveSettings}>
+          {#if saveStatus === "saved"}
+            <PhCheck class="btn-icon" />
+          {:else}
+            <PhFloppyDisk class="btn-icon" />
+          {/if}
+          {saveStatus === "saved" ? "Saved" : "Save Changes"}
         </button>
       {/if}
     </div>
   </div>
 
   {#if importError}
-    <div class="import-error" class:visible={importError}>
-      <Icon icon="ph:warning-circle" class="error-icon" />
+    <div class="alert alert-error">
+      <PhWarningCircleFill class="alert-icon" />
       {importError}
     </div>
   {/if}
 
-  <div class="settings-list">
-    <!-- Database Section -->
-    <div class="settings-section" class:visible={mounted} style="transition-delay: 0.08s">
-      <div class="section-header">
-        <Icon icon="ph:database" class="section-icon" />
-        <span class="section-title">Database</span>
+  <div class="settings-grid">
+    <div class="settings-card">
+      <div class="card-header">
+        <div class="card-header-icon" style="background: var(--accent-blue-light); color: var(--accent-blue)">
+          <PhDatabaseFill class="card-h-icon" />
+        </div>
+        <div>
+          <h3 class="card-heading">Database</h3>
+          <p class="card-desc">Local storage location</p>
+        </div>
       </div>
-      <div class="setting-item">
-        <div class="setting-info">
-          <span class="setting-label">Database Path</span>
-          <code class="setting-value">{settingsDbPath || "Loading..."}</code>
+      <div class="card-content">
+        <div class="field">
+          <label class="field-label">Database Path</label>
+          <div class="field-readonly">
+            <code>{settingsDbPath || "Loading..."}</code>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ImgChest Section -->
-    <div class="settings-section" class:visible={mounted} style="transition-delay: 0.1s">
-      <div class="section-header">
-        <Icon icon="ph:cloud-arrow-up" class="section-icon" />
-        <span class="section-title">ImgChest</span>
+    <div class="settings-card">
+      <div class="card-header">
+        <div class="card-header-icon" style="background: var(--accent-green-light); color: var(--accent-green)">
+          <PhCloudArrowUpFill class="card-h-icon" />
+        </div>
+        <div>
+          <h3 class="card-heading">ImgChest</h3>
+          <p class="card-desc">Image hosting integration</p>
+        </div>
       </div>
-      <div class="setting-item">
-        <div class="setting-info">
-          <span class="setting-label">API Key</span>
-          <div class="password-field">
+      <div class="card-content">
+        <div class="field">
+          <label class="field-label">API Key</label>
+          <div class="input-group">
             <input
               bind:value={settings.imgchestApiKey}
-              class="setting-input"
+              class="field-input"
               placeholder="Enter your API key"
               type={showImgchestKey ? "text" : "password"}
             />
-            <button class="toggle-password" type="button" onclick={() => showImgchestKey = !showImgchestKey}>
-              <Icon icon={showImgchestKey ? "ph:eye-slash" : "ph:eye"} />
+            <button class="input-addon" type="button" onclick={() => showImgchestKey = !showImgchestKey}>
+              {#if showImgchestKey}<PhEyeSlash />{:else}<PhEye />{/if}
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- GitHub Section -->
-    <div class="settings-section" class:visible={mounted} style="transition-delay: 0.12s">
-      <div class="section-header">
-        <Icon icon="ph:github-logo" class="section-icon" />
-        <span class="section-title">GitHub</span>
+    <div class="settings-card card-wide">
+      <div class="card-header">
+        <div class="card-header-icon" style="background: #f1f5f9; color: #1e293b">
+          <PhGithubLogoFill class="card-h-icon" />
+        </div>
+        <div>
+          <h3 class="card-heading">GitHub</h3>
+          <p class="card-desc">Repository sync configuration</p>
+        </div>
       </div>
-      <div class="setting-item">
-        <div class="setting-info">
-          <span class="setting-label">Personal Access Token</span>
-          <div class="password-field">
+      <div class="card-content">
+        <div class="field">
+          <label class="field-label">Personal Access Token</label>
+          <div class="input-group">
             <input
               bind:value={settings.githubToken}
-              class="setting-input"
+              class="field-input"
               placeholder="ghp_xxxxxxxxxxxx"
               type={showGithubToken ? "text" : "password"}
             />
-            <button class="toggle-password" type="button" onclick={() => showGithubToken = !showGithubToken}>
-              <Icon icon={showGithubToken ? "ph:eye-slash" : "ph:eye"} />
+            <button class="input-addon" type="button" onclick={() => showGithubToken = !showGithubToken}>
+              {#if showGithubToken}<PhEyeSlash />{:else}<PhEye />{/if}
             </button>
           </div>
         </div>
-      </div>
-      <div class="setting-item">
-        <div class="setting-info">
-          <span class="setting-label">Repository Owner</span>
-          <input bind:value={settings.githubOwner} class="setting-input" placeholder="username or org" />
-        </div>
-      </div>
-      <div class="setting-item">
-        <div class="setting-info">
-          <span class="setting-label">Repository Name</span>
-          <input bind:value={settings.githubRepo} class="setting-input" placeholder="my-manga-repo" />
-        </div>
-      </div>
-      <div class="setting-item">
-        <div class="setting-info">
-          <span class="setting-label">Branch</span>
-          <input bind:value={settings.githubBranch} class="setting-input" placeholder="main" />
+
+        <div class="fields-row">
+          <div class="field">
+            <label class="field-label">Owner</label>
+            <input bind:value={settings.githubOwner} class="field-input" placeholder="username or org" />
+          </div>
+          <div class="field">
+            <label class="field-label">Repository</label>
+            <input bind:value={settings.githubRepo} class="field-input" placeholder="my-manga-repo" />
+          </div>
+          <div class="field">
+            <label class="field-label">Branch</label>
+            <input bind:value={settings.githubBranch} class="field-input" placeholder="main" />
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Actions Section -->
-    <div class="settings-section" class:visible={mounted} style="transition-delay: 0.14s">
-      <div class="section-header">
-        <Icon icon="ph:gear" class="section-icon" />
-        <span class="section-title">Actions</span>
+    <div class="settings-card card-danger">
+      <div class="card-header">
+        <div class="card-header-icon" style="background: var(--accent-rose-light); color: var(--accent-rose)">
+          <PhWarningFill class="card-h-icon" />
+        </div>
+        <div>
+          <h3 class="card-heading">Danger Zone</h3>
+          <p class="card-desc">Irreversible actions</p>
+        </div>
       </div>
-      <div class="action-buttons">
-        <button class="action-btn-reset" type="button" onclick={openResetModal}>
-          <Icon icon="ph:trash" class="action-btn-icon" />
-          Reset All Settings
-        </button>
-      </div>
-    </div>
-
-    <!-- About Section -->
-    <div class="settings-section about-section" class:visible={mounted} style="transition-delay: 0.16s">
-      <div class="about-minimal">
-        <span class="about-brand">Kaguya</span>
-        <span class="about-version">v{APP_VERSION}</span>
+      <div class="card-content">
+        <div class="danger-row">
+          <div>
+            <p class="danger-title">Reset all settings</p>
+            <p class="danger-desc">Clear all API keys, tokens, and repository configuration.</p>
+          </div>
+          <button class="btn-danger" type="button" onclick={openResetModal}>
+            <PhTrash class="btn-icon" />
+            Reset
+          </button>
+        </div>
       </div>
     </div>
   </div>
+
+  <div class="settings-footer">
+    <span class="footer-brand">Kaguya</span>
+    <span class="footer-sep">·</span>
+    <span class="footer-version">v{APP_VERSION}</span>
+  </div>
 </div>
 
-<!-- Reset Confirmation Modal -->
 {#if showResetModal}
   <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-modal-title" onclick={cancelReset}>
     <div class="modal" onclick={(e) => e.stopPropagation()}>
-      <div class="modal-icon">
-        <Icon icon="ph:warning" />
+      <div class="modal-icon-wrap">
+        <PhWarningFill />
       </div>
       <h2 id="reset-modal-title" class="modal-title">Reset Settings?</h2>
       <p class="modal-message">
@@ -342,7 +368,7 @@
           Cancel
         </button>
         <button class="modal-btn-confirm" type="button" onclick={confirmReset}>
-          <Icon icon="ph:trash" />
+          <PhTrash />
           Reset All
         </button>
       </div>
@@ -351,212 +377,241 @@
 {/if}
 
 <style>
-  .settings-wrapper {
-    display: block;
-    flex: 1;
-    position: relative;
-    z-index: 1;
+  .settings-page {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
   }
 
-  /* Settings - List Layout */
-  .settings-header {
+  .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 28px;
-    opacity: 0;
-    transform: translateY(-8px);
-    transition: all 0.4s ease;
-  }
-
-  .settings-header.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .settings-header .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .header-left {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
   }
 
   .page-title {
     font-size: 1.75rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    margin: 0;
   }
 
-  .item-count {
-    font-size: 0.85rem;
+  .page-subtitle {
+    font-size: 0.9rem;
     color: var(--text-muted);
-    font-family: "JetBrains Mono", monospace;
+    margin: 4px 0 0;
   }
 
-  .header-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-muted);
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-    transition: all 0.2s ease;
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
   }
 
-  .header-btn:hover {
-    background: var(--bg-elevated);
-    color: var(--text-secondary);
-    border-color: var(--border-default);
-  }
-
-  :global(.action-icon) {
-    font-size: 1rem;
-  }
-
-  .global-save-btn {
+  .action-btn-outline {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 8px 14px;
-    background: linear-gradient(135deg, var(--accent-cyan) 0%, #0891b2 100%);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .action-btn-outline:hover {
+    border-color: var(--border-default);
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+
+  :global(.btn-icon) {
+    font-size: 0.95rem;
+  }
+
+  .save-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--accent-blue);
     border: none;
-    border-radius: 6px;
-    color: var(--bg-deep);
+    border-radius: var(--radius-sm);
+    color: #fff;
     font-family: inherit;
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
   }
 
-  .global-save-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(34, 211, 238, 0.3);
+  .save-btn:hover {
+    background: var(--accent-blue-hover);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
   }
 
-  .global-save-btn:active {
-    transform: translateY(0);
-  }
-
-  .global-save-btn.saved {
+  .save-btn.saved {
     background: var(--accent-green);
+    box-shadow: 0 1px 3px rgba(5, 150, 105, 0.25);
   }
 
-  /* Settings List */
-  .import-error {
+  .alert {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    background: rgba(251, 113, 133, 0.1);
-    border: 1px solid var(--accent-rose);
-    border-radius: 8px;
-    color: var(--accent-rose);
+    border-radius: var(--radius-md);
     font-size: 0.85rem;
-    opacity: 0;
-    transform: translateY(-8px);
-    transition: all 0.3s ease;
+    font-weight: 500;
   }
 
-  .import-error.visible {
-    opacity: 1;
-    transform: translateY(0);
+  .alert-error {
+    background: var(--accent-rose-light);
+    border: 1px solid var(--accent-rose);
+    color: var(--accent-rose);
   }
 
-  :global(.error-icon) {
+  :global(.alert-icon) {
     font-size: 1.1rem;
   }
 
-  .settings-list {
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .settings-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .card-wide {
+    grid-column: 1 / -1;
+  }
+
+  .card-danger {
+    grid-column: 1 / -1;
+    border-color: #fecdd3;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .card-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+
+  :global(.card-h-icon) {
+    font-size: 1.2rem;
+  }
+
+  .card-heading {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .card-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+  }
+
+  .card-content {
+    padding: 18px 22px 22px;
     display: flex;
     flex-direction: column;
     gap: 16px;
   }
 
-  .settings-section {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: 12px;
-    padding: 16px 20px;
-    opacity: 0;
-    transform: translateY(12px);
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .settings-section.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  :global(.section-icon) {
-    font-size: 1.1rem;
-    color: var(--accent-cyan);
-  }
-
-  .section-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: -0.01em;
-  }
-
-  .setting-item {
-    padding: 10px 0;
-  }
-
-  .setting-item + .setting-item {
-    border-top: 1px solid var(--border-subtle);
-  }
-
-  .setting-info {
+  .field {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
-  .setting-label {
+  .field-label {
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-family: var(--mono);
   }
 
-  .setting-value {
+  .field-readonly {
+    padding: 10px 14px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+  }
+
+  .field-readonly code {
+    font-family: var(--mono);
     font-size: 0.8rem;
-    color: var(--text-muted);
-    font-family: "JetBrains Mono", monospace;
+    color: var(--text-secondary);
     word-break: break-all;
-    white-space: pre-wrap;
   }
 
-  .password-field {
+  .field-input {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-base);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .field-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .field-input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px var(--accent-blue-light);
+  }
+
+  .input-group {
     position: relative;
     display: flex;
     align-items: center;
   }
 
-  .password-field .setting-input {
-    padding-right: 40px;
+  .input-group .field-input {
+    padding-right: 42px;
   }
 
-  .toggle-password {
+  .input-addon {
     position: absolute;
     right: 8px;
     top: 50%;
@@ -569,189 +624,160 @@
     display: grid;
     place-items: center;
     border-radius: 4px;
-    transition: all 0.2s ease;
+    transition: color 0.15s ease;
   }
 
-  .toggle-password:hover {
+  .input-addon:hover {
     color: var(--text-secondary);
   }
 
-  .toggle-password :global(svg) {
+  .input-addon :global(svg) {
     font-size: 1rem;
   }
 
-  .setting-input {
-    width: 100%;
-    padding: 10px 12px;
-    border-radius: 6px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-primary);
-    font-family: inherit;
-    font-size: 0.85rem;
-    outline: none;
-    transition: all 0.2s ease;
+  .fields-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
   }
 
-  .setting-input::placeholder {
-    color: var(--text-muted);
-  }
-
-  .setting-input:focus {
-    border-color: var(--accent-cyan);
-  }
-
-  .action-buttons {
+  .danger-row {
     display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
   }
 
-  .action-btn-reset {
+  .danger-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .danger-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: 4px 0 0;
+  }
+
+  .btn-danger {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
+    gap: 6px;
+    padding: 8px 16px;
     background: transparent;
     border: 1px solid var(--accent-rose);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--accent-rose);
     font-family: inherit;
-    font-size: 0.85rem;
-    font-weight: 500;
+    font-size: 0.8rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.15s ease;
+    white-space: nowrap;
   }
 
-  .action-btn-reset:hover {
-    background: rgba(251, 113, 133, 0.1);
+  .btn-danger:hover {
+    background: var(--accent-rose-light);
   }
 
-  :global(.action-btn-icon) {
-    font-size: 1rem;
-  }
-
-  .about-section {
-    background: transparent;
-    border: 1px solid transparent;
+  .settings-footer {
     display: flex;
     justify-content: center;
-    padding: 20px;
-  }
-
-  .about-minimal {
-    display: flex;
     align-items: center;
     gap: 8px;
+    padding: 16px 0;
   }
 
-  .about-brand {
-    font-size: 0.9rem;
+  .footer-brand {
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-secondary);
   }
 
-  .about-version {
+  .footer-sep {
+    color: var(--text-muted);
+  }
+
+  .footer-version {
     font-size: 0.75rem;
     color: var(--text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--mono);
   }
 
-  :global(.save-icon) {
-    font-size: 0.9rem;
-  }
-
-  /* Modal */
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
     display: grid;
     place-items: center;
     z-index: 50;
     padding: 20px;
-    animation: overlay-in 0.2s ease-out;
-  }
-
-  @keyframes overlay-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
   }
 
   .modal {
     background: var(--bg-surface);
     border: 1px solid var(--border-default);
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     padding: 28px;
     max-width: 400px;
     width: 100%;
     text-align: center;
-    animation: modal-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-lg);
   }
 
-  @keyframes modal-in {
-    from {
-      opacity: 0;
-      transform: scale(0.95) translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-  }
-
-  .modal-icon {
-    width: 56px;
-    height: 56px;
+  .modal-icon-wrap {
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    background: rgba(251, 113, 133, 0.15);
+    background: var(--accent-rose-light);
     display: grid;
     place-items: center;
-    margin: 0 auto 20px;
+    margin: 0 auto 18px;
   }
 
-  .modal-icon :global(svg) {
-    font-size: 1.75rem;
+  .modal-icon-wrap :global(svg) {
+    font-size: 1.5rem;
     color: var(--accent-rose);
   }
 
   .modal-title {
-    font-size: 1.25rem;
-    font-weight: 600;
+    font-size: 1.15rem;
+    font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 12px;
-    letter-spacing: -0.01em;
+    margin: 0 0 10px;
+    letter-spacing: -0.02em;
   }
 
   .modal-message {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--text-secondary);
-    line-height: 1.5;
-    margin: 0 0 24px;
+    line-height: 1.6;
+    margin: 0 0 22px;
   }
 
   .modal-actions {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     justify-content: center;
   }
 
   .modal-btn-cancel {
-    padding: 10px 20px;
+    padding: 9px 20px;
     background: var(--bg-elevated);
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     color: var(--text-secondary);
     font-family: inherit;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: border-color 0.15s ease, color 0.15s ease;
   }
 
   .modal-btn-cancel:hover {
-    background: var(--bg-surface);
     border-color: var(--border-default);
     color: var(--text-primary);
   }
@@ -760,25 +786,37 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 10px 20px;
+    padding: 9px 20px;
     background: var(--accent-rose);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     color: #fff;
     font-family: inherit;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.15s ease;
   }
 
   .modal-btn-confirm:hover {
-    background: #f43f5e;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(251, 113, 133, 0.35);
+    background: #be123c;
   }
 
   .modal-btn-confirm :global(svg) {
-    font-size: 1rem;
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 768px) {
+    .settings-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .fields-row {
+      grid-template-columns: 1fr;
+    }
+
+    .header-actions {
+      flex-wrap: wrap;
+    }
   }
 </style>

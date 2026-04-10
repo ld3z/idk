@@ -1,5 +1,6 @@
 <script lang="ts">
-  import Icon from "@iconify/svelte";
+  import PhMagnifyingGlass from "~icons/ph/magnifying-glass";
+  import PhSlidersHorizontal from "~icons/ph/sliders-horizontal";
 
   type MangaStatus = "Reading" | "Plan to read" | "On hold" | "Completed";
 
@@ -9,7 +10,6 @@
     author: string;
     status: MangaStatus;
     progress: string;
-    rating: number;
     volumes: string;
     updated: string;
     color: string;
@@ -29,10 +29,9 @@
       author: "M. Aoyama",
       status: "Reading",
       progress: "Vol. 8 / 14",
-      rating: 4.8,
       volumes: "14 vols",
       updated: "Updated 2h ago",
-      color: "linear-gradient(135deg, #00d4ff 0%, #09090b 100%)",
+      color: "#2563eb",
       tags: ["Seinen", "Action"],
     },
     {
@@ -41,10 +40,9 @@
       author: "N. Hoshino",
       status: "Completed",
       progress: "Read 12 / 12",
-      rating: 4.9,
       volumes: "12 vols",
       updated: "Finished last week",
-      color: "linear-gradient(135deg, #ff6b35 0%, #09090b 100%)",
+      color: "#059669",
       tags: ["Romance", "Drama"],
     },
     {
@@ -53,10 +51,9 @@
       author: "K. Teshima",
       status: "On hold",
       progress: "Paused at Vol. 4",
-      rating: 4.2,
       volumes: "9 vols",
       updated: "Paused 5 days ago",
-      color: "linear-gradient(135deg, #a855f7 0%, #09090b 100%)",
+      color: "#7c3aed",
       tags: ["Sci-Fi", "Mystery"],
     },
     {
@@ -65,10 +62,9 @@
       author: "R. Yamada",
       status: "Plan to read",
       progress: "Queued for next",
-      rating: 4.6,
       volumes: "6 vols",
       updated: "Saved today",
-      color: "linear-gradient(135deg, #22c55e 0%, #09090b 100%)",
+      color: "#0891b2",
       tags: ["Slice of life", "Fantasy"],
     },
     {
@@ -77,10 +73,9 @@
       author: "S. Kurono",
       status: "Reading",
       progress: "Vol. 2 / 11",
-      rating: 4.4,
       volumes: "11 vols",
       updated: "Updated yesterday",
-      color: "linear-gradient(135deg, #ec4899 0%, #09090b 100%)",
+      color: "#e11d48",
       tags: ["Adventure", "Shounen"],
     },
     {
@@ -89,61 +84,93 @@
       author: "A. Shira",
       status: "Completed",
       progress: "Read 20 / 20",
-      rating: 5.0,
       volumes: "20 vols",
       updated: "Completed 3 months ago",
-      color: "linear-gradient(135deg, #eab308 0%, #09090b 100%)",
+      color: "#d97706",
       tags: ["Fantasy", "Mystery"],
     },
   ];
 
-  function getCardDelay(index: number) {
-    return `${0.05 * (index % 6)}s`;
+  let library = $state(seedLibrary);
+  let activeFilter = $state<MangaStatus | "All">("All");
+
+  const filters: (MangaStatus | "All")[] = ["All", "Reading", "Completed", "On hold", "Plan to read"];
+
+  let filteredLibrary = $derived(
+    activeFilter === "All" ? library : library.filter((m) => m.status === activeFilter)
+  );
+
+  function statusColor(status: MangaStatus) {
+    switch (status) {
+      case "Reading": return "var(--accent-blue)";
+      case "Completed": return "var(--accent-green)";
+      case "On hold": return "var(--accent-amber)";
+      case "Plan to read": return "var(--text-muted)";
+    }
   }
 
-  let library = $state(seedLibrary);
+  function statusBg(status: MangaStatus) {
+    switch (status) {
+      case "Reading": return "var(--accent-blue-light)";
+      case "Completed": return "var(--accent-green-light)";
+      case "On hold": return "var(--accent-amber-light)";
+      case "Plan to read": return "var(--bg-elevated)";
+    }
+  }
 </script>
 
-<div class="library-wrapper">
-  <div class="library-header" class:visible={mounted}>
-    <div class="header-left">
+<div class="library-page">
+  <div class="page-header">
+    <div class="header-text">
       <h1 class="page-title">Library</h1>
-      <span class="item-count">{library.length} manga</span>
+      <p class="page-subtitle">{filteredLibrary.length} titles</p>
     </div>
     <div class="header-actions">
-      <button class="action-btn" type="button">
-        <Icon icon="ph:magnifying-glass" class="action-icon" />
+      <button class="icon-btn" type="button" title="Search">
+        <PhMagnifyingGlass class="icon-btn-svg" />
       </button>
-      <button class="action-btn" type="button">
-        <Icon icon="ph:funnel" class="action-icon" />
+      <button class="icon-btn" type="button" title="Filter">
+        <PhSlidersHorizontal class="icon-btn-svg" />
       </button>
     </div>
   </div>
 
-  <div class="library-grid">
-    {#each library as manga, i}
+  <div class="filter-bar">
+    {#each filters as f}
       <button
-        class="manga-card"
-        class:visible={mounted}
+        class="filter-chip"
+        class:active={activeFilter === f}
         type="button"
-        style={`transition-delay: ${getCardDelay(i)}`}
+        onclick={() => (activeFilter = f)}
       >
-        <div class="cover" style={`background:${manga.color}`}>
-          <span class="cover-letter">{manga.title.slice(0, 2).toUpperCase()}</span>
-          <div class="cover-overlay">
-            <Icon icon="ph:eye" class="preview-icon" />
-          </div>
+        {f}
+        {#if f !== "All"}
+          <span class="filter-count">{library.filter((m) => m.status === f).length}</span>
+        {/if}
+      </button>
+    {/each}
+  </div>
+
+  <div class="cards-grid">
+    {#each filteredLibrary as manga}
+      <button class="manga-card" type="button">
+        <div class="card-cover" style={`background: ${manga.color}`}>
+          <span class="card-initial">{manga.title[0]}</span>
         </div>
-        <div class="manga-info">
-          <div class="title-row">
-            <h3 class="manga-title">{manga.title}</h3>
-            <div class="rating" style={`--rating-color: ${manga.rating >= 4.5 ? 'var(--accent-amber)' : 'var(--accent-muted)'}`}>
-              <Icon icon="ph:star-fill" class="star-icon" />
-              <span>{manga.rating.toFixed(1)}</span>
-            </div>
+        <div class="card-body">
+          <h3 class="card-title">{manga.title}</h3>
+          <p class="card-author">{manga.author}</p>
+          <div class="card-footer">
+            <span class="card-status" style={`color: ${statusColor(manga.status)}; background: ${statusBg(manga.status)}`}>
+              {manga.status}
+            </span>
+            <span class="card-volumes">{manga.volumes}</span>
           </div>
-          <p class="author">{manga.author}</p>
-          <span class="volumes">{manga.volumes}</span>
+          <div class="card-tags">
+            {#each manga.tags as tag}
+              <span class="card-tag">{tag}</span>
+            {/each}
+          </div>
         </div>
       </button>
     {/each}
@@ -151,210 +178,203 @@
 </div>
 
 <style>
-  .library-wrapper {
-    display: block;
-    flex: 1;
-    position: relative;
-    z-index: 1;
+  .library-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
   }
 
-  /* Library header */
-  .library-header {
+  .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 28px;
-    opacity: 0;
-    transform: translateY(-8px);
-    transition: all 0.4s ease;
-  }
-
-  .library-header.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .header-left {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
+    align-items: flex-start;
   }
 
   .page-title {
     font-size: 1.75rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    margin: 0;
   }
 
-  .item-count {
+  .page-subtitle {
     font-size: 0.85rem;
     color: var(--text-muted);
-    font-family: "JetBrains Mono", monospace;
+    margin: 4px 0 0;
+    font-family: var(--mono);
   }
 
   .header-actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
   }
 
-  .action-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm);
     background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
-    color: var(--text-muted);
+    color: var(--text-secondary);
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
+    box-shadow: var(--shadow-sm);
   }
 
-  .action-btn:hover {
+  .icon-btn:hover {
     background: var(--bg-elevated);
-    color: var(--text-secondary);
     border-color: var(--border-default);
+    color: var(--text-primary);
   }
 
-  :global(.action-icon) {
+  :global(.icon-btn-svg) {
     font-size: 1.1rem;
   }
 
-  /* Library grid */
-  .library-grid {
+  .filter-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .filter-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .filter-chip:hover {
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+
+  .filter-chip.active {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: #fff;
+  }
+
+  .filter-count {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    opacity: 0.7;
+  }
+
+  .filter-chip.active .filter-count {
+    opacity: 0.85;
+  }
+
+  .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
+    gap: 16px;
   }
 
   .manga-card {
     background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
-    border-radius: 14px;
-    padding: 14px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
     cursor: pointer;
     text-align: left;
-    opacity: 0;
-    transform: translateY(20px) scale(0.98);
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .manga-card.visible {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    padding: 0;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
   }
 
   .manga-card:hover {
     border-color: var(--border-default);
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-3px);
   }
 
-  .cover {
-    aspect-ratio: 3/4;
-    border-radius: 10px;
+  .card-cover {
+    height: 140px;
     display: flex;
-    align-items: flex-end;
-    padding: 14px;
-    margin-bottom: 14px;
-    position: relative;
-    overflow: hidden;
+    align-items: center;
+    justify-content: center;
   }
 
-  .cover::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60%;
-    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
-    pointer-events: none;
-  }
-
-  .cover-letter {
-    font-family: "Outfit", sans-serif;
+  .card-initial {
+    font-size: 2.5rem;
     font-weight: 700;
-    font-size: 1.6rem;
-    color: var(--text-primary);
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
-    position: relative;
-    z-index: 1;
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: -0.03em;
   }
 
-  .cover-overlay {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    background: rgba(0, 0, 0, 0.5);
-    opacity: 0;
-    transition: all 0.25s ease;
+  .card-body {
+    padding: 14px 16px 16px;
   }
 
-  .manga-card:hover .cover-overlay {
-    opacity: 1;
-  }
-
-  :global(.preview-icon) {
-    font-size: 2rem;
-    color: var(--text-primary);
-  }
-
-  .manga-info {
-    padding: 0 2px;
-  }
-
-  .title-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-
-  .manga-title {
-    font-size: 0.95rem;
+  .card-title {
+    font-size: 0.9rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin: 0;
+    margin: 0 0 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 1;
     letter-spacing: -0.01em;
   }
 
-  .rating {
-    display: flex;
-    align-items: center;
-    gap: 3px;
+  .card-author {
     font-size: 0.75rem;
-    color: var(--rating-color);
-    font-family: "JetBrains Mono", monospace;
-    white-space: nowrap;
-  }
-
-  :global(.star-icon) {
-    font-size: 0.8rem;
-  }
-
-  .author {
-    font-size: 0.8rem;
     color: var(--text-muted);
-    margin-bottom: 10px;
+    margin: 0 0 10px;
   }
 
-  .volumes {
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .card-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+
+  .card-volumes {
+    font-family: var(--mono);
     font-size: 0.7rem;
     color: var(--text-muted);
-    font-family: "JetBrains Mono", monospace;
   }
 
-  @media (max-width: 768px) {
-    .library-grid {
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  .card-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .card-tag {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-weight: 500;
+    border: 1px solid var(--border-subtle);
+  }
+
+  @media (max-width: 640px) {
+    .cards-grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
   }
 </style>

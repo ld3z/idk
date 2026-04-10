@@ -12,9 +12,11 @@
 	},
 	"dependencies": {
 		"@iconify/svelte": "^5.2.1",
-		"electrobun": "1.16.0"
+		"electrobun": "1.16.0",
+		"unplugin-icons": "^23.0.1"
 	},
 	"devDependencies": {
+		"@iconify-json/ph": "^1.2.2",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@types/bun": "latest",
 		"concurrently": "^9.2.1",
