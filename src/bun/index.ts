@@ -137,25 +137,29 @@ function getImgchestApiKey(db: Database): string {
 async function uploadToImgChest(apiKey: string, filePaths: string[]): Promise<string[]> {
 	const form = new FormData();
 	for (const fp of filePaths) {
-		const data = readFileSync(fp);
-		const ext = fp.split(".").pop()?.toLowerCase() ?? "jpg";
-		const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
-		form.append("images[]", new Blob([data], { type: mime }), basename(fp));
+		form.append("images[]", Bun.file(fp), basename(fp));
 	}
 
 	const res = await fetch("https://api.imgchest.com/v1/post", {
 		method: "POST",
-		headers: { Authorization: `Bearer ${apiKey}` },
+		headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
 		body: form,
 	});
 
+	const text = await res.text();
+
 	if (!res.ok) {
-		const text = await res.text();
 		throw new Error(`ImgChest upload failed (${res.status}): ${text}`);
 	}
 
-	const json = (await res.json()) as { data: { images: { link: string }[] } };
-	return json.data.images.map((img) => img.link);
+	let json: any;
+	try {
+		json = JSON.parse(text);
+	} catch {
+		throw new Error(`Failed to parse ImgChest response: ${text.slice(0, 300)}`);
+	}
+
+	return (json.data?.images ?? []).map((img: any) => img.link);
 }
 
 async function getMainViewUrl(): Promise<string> {
@@ -304,7 +308,7 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 
 			pickImages: async () => {
 				const paths = await Utils.openFileDialog({
-					allowedFileTypes: "*.png,*.jpg,*.jpeg,*.webp,*.gif",
+					allowedFileTypes: "*",
 					canChooseFiles: true,
 					canChooseDirectory: false,
 					allowsMultipleSelection: true,
@@ -323,7 +327,7 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 
 				if (!existsSync(params.folderPath)) throw new Error("Images folder not found");
 
-				const imageExts = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+				const imageExts = new Set(["jpg", "jpeg", "png", "webp", "gif", "bmp", "tiff", "tif", "avif"]);
 				const files = readdirSync(params.folderPath)
 					.filter((f) => imageExts.has(f.split(".").pop()?.toLowerCase() ?? ""))
 					.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))

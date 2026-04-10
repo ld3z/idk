@@ -39,6 +39,7 @@
 
   let uploadingChapter = $state<string | null>(null);
   let uploadStatus = $state<string | null>(null);
+  let uploadError = $state<string | null>(null);
   let newGroupUpload = $state<{ chapterNum: string } | null>(null);
   let newGroupName = $state("");
 
@@ -110,8 +111,9 @@
             uploadStatus = `Uploaded ${result.urls.length} image${result.urls.length > 1 ? "s" : ""}!`;
             setTimeout(() => { uploadStatus = null; uploadingChapter = null; }, 2000);
           } catch (e: any) {
-            uploadStatus = `Upload failed: ${e.message ?? "Unknown error"}`;
-            setTimeout(() => { uploadStatus = null; uploadingChapter = null; }, 3000);
+            uploadStatus = null;
+            uploadingChapter = null;
+            uploadError = `Upload failed: ${e.message ?? "Unknown error"}`;
           }
         }
       }
@@ -193,8 +195,9 @@
       uploadStatus = `Uploaded ${result.urls.length} image${result.urls.length > 1 ? "s" : ""}!`;
       setTimeout(() => { uploadStatus = null; uploadingChapter = null; }, 2000);
     } catch (e: any) {
-      uploadStatus = `Upload failed: ${e.message ?? "Unknown error"}`;
-      setTimeout(() => { uploadStatus = null; uploadingChapter = null; }, 3000);
+      uploadStatus = null;
+      uploadingChapter = null;
+      uploadError = `Upload failed: ${e.message ?? "Unknown error"}`;
     }
   }
 
@@ -439,6 +442,13 @@
 
       {#if uploadStatus}
         <div class="upload-toast">{uploadStatus}</div>
+      {/if}
+
+      {#if uploadError}
+        <div class="upload-error-toast">
+          <span class="upload-error-text">{uploadError}</span>
+          <button class="upload-error-dismiss" type="button" onclick={() => (uploadError = null)}>&times;</button>
+        </div>
       {/if}
     </div>
   </div>
@@ -1079,6 +1089,53 @@
     font-size: 0.8rem;
     color: var(--text-primary);
     z-index: 50;
+  }
+
+  .upload-error-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    left: 24px;
+    max-width: 560px;
+    margin-left: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--accent-rose);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 51;
+  }
+
+  .upload-error-text {
+    flex: 1;
+    font-size: 0.78rem;
+    color: var(--accent-rose);
+    line-height: 1.5;
+    word-break: break-word;
+    font-family: var(--mono);
+  }
+
+  .upload-error-dismiss {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+  }
+
+  .upload-error-dismiss:hover {
+    background: var(--accent-rose-light);
+    color: var(--accent-rose);
   }
 
   /* Modal */
