@@ -12,6 +12,7 @@
   import PhImage from "~icons/ph/image";
   import PhFolderOpen from "~icons/ph/folder-open";
   import PhPencilSimple from "~icons/ph/pencil-simple";
+  import PhCloudArrowDown from "~icons/ph/cloud-arrow-down";
 
   interface Props {
     rpc: any;
@@ -299,6 +300,62 @@
     }
     return total;
   }
+
+  type BakaResult = { id: number; title: string; description: string; author: string; artist: string; cover: string };
+
+  let showFetchModal = $state(false);
+  let fetchPhase = $state<"search" | "results" | "preview">("search");
+  let fetchQuery = $state("");
+  let fetchLoading = $state(false);
+  let fetchError = $state<string | null>(null);
+  let fetchResults = $state<BakaResult[]>([]);
+  let fetchPicked = $state<BakaResult | null>(null);
+  let fetchFields = $state<Record<string, boolean>>({ title: true, description: true, author: true, artist: true, cover: true });
+
+  function openFetchModal() {
+    showFetchModal = true;
+    fetchPhase = "search";
+    fetchQuery = title || "";
+    fetchLoading = false;
+    fetchError = null;
+    fetchResults = [];
+    fetchPicked = null;
+    fetchFields = { title: true, description: true, author: true, artist: true, cover: true };
+  }
+
+  async function doFetchSearch() {
+    if (!fetchQuery.trim()) return;
+    fetchLoading = true;
+    fetchError = null;
+    try {
+      const res = await rpc.request.searchMangaBaka({ query: fetchQuery.trim() });
+      fetchResults = res.results;
+      if (fetchResults.length === 0) {
+        fetchError = "No results found.";
+      } else {
+        fetchPhase = "results";
+      }
+    } catch (e: any) {
+      fetchError = e.message ?? "Search failed";
+    } finally {
+      fetchLoading = false;
+    }
+  }
+
+  function pickFetchResult(r: BakaResult) {
+    fetchPicked = r;
+    fetchPhase = "preview";
+  }
+
+  function applyFetchResult() {
+    if (!fetchPicked) return;
+    if (fetchFields.title) title = fetchPicked.title;
+    if (fetchFields.description) description = fetchPicked.description;
+    if (fetchFields.author) author = fetchPicked.author;
+    if (fetchFields.artist) artist = fetchPicked.artist;
+    if (fetchFields.cover) cover = fetchPicked.cover;
+    showFetchModal = false;
+  }
 </script>
 
 <div class="detail-page">
@@ -365,6 +422,10 @@
           <label class="field-label">Description</label>
           <textarea class="field-textarea" bind:value={description} placeholder="Synopsis..." rows="3"></textarea>
         </div>
+        <button class="fetch-meta-btn" type="button" onclick={openFetchModal}>
+          <PhCloudArrowDown />
+          Fetch from MangaBaka
+        </button>
       </div>
     </div>
 
@@ -610,6 +671,86 @@
           Remove
         </button>
       </div>
+    </div>
+  </div>
+{/if}
+
+{#if showFetchModal}
+  <div class="modal-overlay" role="dialog" aria-modal="true" onclick={() => (showFetchModal = false)}>
+    <div class="fetch-modal" onclick={(e) => e.stopPropagation()}>
+
+      {#if fetchPhase === "search"}
+        <h2 class="fetch-modal-title">Fetch Metadata</h2>
+        <p class="fetch-modal-sub">Search MangaBaka for series metadata</p>
+        <form class="fetch-search-row" onsubmit={(e) => { e.preventDefault(); doFetchSearch(); }}>
+          <input
+            class="fetch-search-input"
+            type="text"
+            bind:value={fetchQuery}
+            placeholder="Search by title..."
+            autofocus
+          />
+          <button class="btn-primary" type="submit" disabled={fetchLoading || !fetchQuery.trim()}>
+            {fetchLoading ? "Searching..." : "Search"}
+          </button>
+        </form>
+        {#if fetchError}
+          <p class="fetch-error">{fetchError}</p>
+        {/if}
+
+      {:else if fetchPhase === "results"}
+        <div class="fetch-results-header">
+          <h2 class="fetch-modal-title">Select Series</h2>
+          <button class="fetch-back-btn" type="button" onclick={() => (fetchPhase = "search")}>Back</button>
+        </div>
+        <div class="fetch-results-list">
+          {#each fetchResults as r}
+            <button class="fetch-result-card" type="button" onclick={() => pickFetchResult(r)}>
+              {#if r.cover}
+                <img class="fetch-result-cover" src={r.cover} alt={r.title} />
+              {:else}
+                <div class="fetch-result-cover-empty"></div>
+              {/if}
+              <div class="fetch-result-info">
+                <span class="fetch-result-title">{r.title}</span>
+                <span class="fetch-result-author">{[r.author, r.artist].filter(Boolean).join(" / ") || "Unknown"}</span>
+                <span class="fetch-result-desc">{r.description?.slice(0, 120) || "No description"}{r.description && r.description.length > 120 ? "..." : ""}</span>
+              </div>
+            </button>
+          {/each}
+        </div>
+
+      {:else if fetchPhase === "preview"}
+        <div class="fetch-results-header">
+          <h2 class="fetch-modal-title">Preview Changes</h2>
+          <button class="fetch-back-btn" type="button" onclick={() => (fetchPhase = "results")}>Back</button>
+        </div>
+        {#if fetchPicked}
+          <div class="fetch-preview-list">
+            {#each [
+              { key: "title", label: "Title", current: title, fetched: fetchPicked.title },
+              { key: "description", label: "Description", current: description, fetched: fetchPicked.description },
+              { key: "author", label: "Author", current: author, fetched: fetchPicked.author },
+              { key: "artist", label: "Artist", current: artist, fetched: fetchPicked.artist },
+              { key: "cover", label: "Cover", current: cover, fetched: fetchPicked.cover },
+            ] as field}
+              <label class="fetch-preview-row">
+                <input type="checkbox" bind:checked={fetchFields[field.key]} />
+                <div class="fetch-preview-field">
+                  <span class="fetch-preview-label">{field.label}</span>
+                  <span class="fetch-preview-current" class:empty={!field.current}>{field.current || "(empty)"}</span>
+                  <span class="fetch-preview-arrow">&#8594;</span>
+                  <span class="fetch-preview-new" class:empty={!field.fetched}>{field.fetched || "(empty)"}</span>
+                </div>
+              </label>
+            {/each}
+          </div>
+          <div class="fetch-preview-actions">
+            <button class="btn-secondary" type="button" onclick={() => (showFetchModal = false)}>Cancel</button>
+            <button class="btn-primary" type="button" onclick={applyFetchResult}>Apply Selected</button>
+          </div>
+        {/if}
+      {/if}
     </div>
   </div>
 {/if}
@@ -1514,6 +1655,262 @@
   .modal-btn-danger:hover { background: #be123c; }
 
   .modal-btn-danger :global(svg) { font-size: 0.95rem; }
+
+  /* Fetch Metadata Button */
+  .fetch-meta-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    padding: 7px 14px;
+    background: var(--bg-base);
+    border: 1px dashed var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .fetch-meta-btn:hover {
+    border-style: solid;
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+    background: var(--accent-blue-light);
+  }
+
+  .fetch-meta-btn :global(svg) { font-size: 1rem; }
+
+  /* Fetch Modal */
+  .fetch-modal {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    max-width: 580px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .fetch-modal-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .fetch-modal-sub {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 4px 0 16px;
+  }
+
+  .fetch-search-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .fetch-search-input {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-base);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    outline: none;
+  }
+
+  .fetch-search-input:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px var(--accent-blue-light);
+  }
+
+  .fetch-search-input::placeholder { color: var(--text-muted); }
+
+  .fetch-error {
+    font-size: 0.8rem;
+    color: var(--accent-rose);
+    margin: 10px 0 0;
+  }
+
+  .fetch-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .fetch-back-btn {
+    padding: 5px 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .fetch-back-btn:hover { border-color: var(--border-default); color: var(--text-primary); }
+
+  .fetch-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .fetch-result-card {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg-base);
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    transition: all 0.12s ease;
+    width: 100%;
+  }
+
+  .fetch-result-card:hover {
+    border-color: var(--accent-blue);
+    background: var(--accent-blue-light);
+  }
+
+  .fetch-result-cover {
+    width: 44px;
+    height: 62px;
+    border-radius: 4px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .fetch-result-cover-empty {
+    width: 44px;
+    height: 62px;
+    border-radius: 4px;
+    background: var(--bg-elevated);
+    flex-shrink: 0;
+  }
+
+  .fetch-result-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .fetch-result-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .fetch-result-author {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+
+  .fetch-result-desc {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Preview */
+  .fetch-preview-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .fetch-preview-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    padding: 10px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg-base);
+    transition: border-color 0.12s ease;
+  }
+
+  .fetch-preview-row:hover { border-color: var(--border-default); }
+
+  .fetch-preview-row input[type="checkbox"] {
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: var(--accent-blue);
+  }
+
+  .fetch-preview-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .fetch-preview-label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .fetch-preview-current {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .fetch-preview-current.empty { color: var(--text-muted); font-style: italic; }
+
+  .fetch-preview-arrow {
+    font-size: 0.7rem;
+    color: var(--accent-blue);
+    font-weight: 600;
+  }
+
+  .fetch-preview-new {
+    font-size: 0.75rem;
+    color: var(--accent-green);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .fetch-preview-new.empty { color: var(--text-muted); font-style: italic; }
+
+  .fetch-preview-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
 
   @media (max-width: 768px) {
     .metadata-section {

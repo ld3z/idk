@@ -29,6 +29,7 @@ type RpcSchema = {
 			uploadImagesFromFolder: { params: { id: number; chapterNum: string; group: string; folderPath: string }; response: { urls: string[] } };
 			pickFolder: { params: void; response: { path: string } | null };
 			pickImages: { params: void; response: { paths: string[] } | null };
+			searchMangaBaka: { params: { query: string }; response: { results: { id: number; title: string; description: string; author: string; artist: string; cover: string }[] } };
 		};
 		messages: Record<never, never>;
 	};
@@ -315,6 +316,30 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 				});
 				if (!paths || paths.length === 0) return null;
 				return { paths };
+			},
+
+			// --- MangaBaka Search ---
+			searchMangaBaka: async (params) => {
+				const q = encodeURIComponent(params.query.trim());
+				if (!q) return { results: [] };
+
+				const res = await fetch(`https://api.mangabaka.dev/v1/series/search?q=${q}`, {
+					headers: { Accept: "application/json" },
+				});
+
+				if (!res.ok) throw new Error(`MangaBaka search failed (${res.status})`);
+
+				const json = (await res.json()) as { data: any[] };
+				const results = (json.data ?? []).slice(0, 10).map((s: any) => ({
+					id: s.id as number,
+					title: (s.title ?? "") as string,
+					description: (s.description ?? "") as string,
+					author: (s.authors?.[0] ?? "") as string,
+					artist: (s.artists?.[0] ?? "") as string,
+					cover: (s.cover?.raw?.url ?? "") as string,
+				}));
+
+				return { results };
 			},
 
 			// --- Upload from folder ---
