@@ -487,8 +487,7 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.5);
     display: grid;
     place-items: center;
     z-index: 50;
