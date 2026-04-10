@@ -906,8 +906,6 @@
 {/if}
 
 <style>
-  @import url("https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&display=swap");
-
   .detail-page {
     display: flex;
     flex-direction: column;
