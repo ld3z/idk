@@ -168,7 +168,7 @@
     showResetModal = true;
   }
 
-  function confirmReset() {
+  async function confirmReset() {
     showResetModal = false;
     settings = {
       imgchestApiKey: "",
@@ -178,8 +178,14 @@
       githubBranch: "main",
     };
 
-    saveSettings();
-    toast = { kind: "success", message: "Settings reset and saved." };
+    await rpc.request.saveSettings(settings);
+    originalSettings = { ...settings };
+    hasUnsavedChanges = false;
+    saveStatus = "idle";
+    toast = { kind: "success", message: "Settings reset." };
+    window.setTimeout(() => {
+      if (toast?.message === "Settings reset.") toast = null;
+    }, 2200);
   }
 
   function cancelReset() {
@@ -209,16 +215,20 @@
         style="display: none"
         onchange={handleImport}
       />
-      {#if hasUnsavedChanges || saveStatus === "saved"}
-        <button class="save-btn" class:saved={saveStatus === "saved"} type="button" onclick={saveSettings}>
-          {#if saveStatus === "saved"}
-            <PhCheck class="btn-icon" />
-          {:else}
-            <PhFloppyDisk class="btn-icon" />
-          {/if}
-          {saveStatus === "saved" ? "Saved" : "Save Changes"}
-        </button>
-      {/if}
+      <button
+        class="save-btn"
+        class:saved={saveStatus === "saved"}
+        type="button"
+        onclick={saveSettings}
+        disabled={!hasUnsavedChanges && saveStatus !== "saved"}
+      >
+        {#if saveStatus === "saved"}
+          <PhCheck class="btn-icon" />
+        {:else}
+          <PhFloppyDisk class="btn-icon" />
+        {/if}
+        {saveStatus === "saved" ? "Saved" : "Save Changes"}
+      </button>
     </div>
   </div>
 
@@ -458,6 +468,12 @@
   .save-btn:hover {
     background: var(--accent-blue-hover);
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  }
+
+  .save-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
   }
 
   .save-btn.saved {
