@@ -40,10 +40,31 @@
   let uploadingChapter = $state<string | null>(null);
   let uploadStatus = $state<string | null>(null);
   let uploadError = $state<string | null>(null);
+  let uploadProgress = $state<{ group: string; count: number; startTime: number } | null>(null);
   let newGroupUpload = $state<{ chapterNum: string } | null>(null);
   let newGroupName = $state("");
 
   let confirmRemoveChapter = $state<string | null>(null);
+
+  let elapsedStr = $state("");
+  let elapsedInterval: ReturnType<typeof setInterval> | null = null;
+
+  $effect(() => {
+    if (uploadProgress) {
+      const start = uploadProgress.startTime;
+      const tick = () => {
+        const s = Math.floor((Date.now() - start) / 1000);
+        const m = Math.floor(s / 60);
+        elapsedStr = m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
+      };
+      tick();
+      elapsedInterval = setInterval(tick, 1000);
+      return () => { if (elapsedInterval) clearInterval(elapsedInterval); };
+    } else {
+      elapsedStr = "";
+      if (elapsedInterval) { clearInterval(elapsedInterval); elapsedInterval = null; }
+    }
+  });
 
   $effect(() => {
     const orig = entry.manga;
@@ -97,7 +118,7 @@
         const picked = await rpc.request.pickImages();
         if (picked && picked.paths.length > 0) {
           uploadingChapter = num;
-          uploadStatus = `Uploading ${picked.paths.length} image${picked.paths.length > 1 ? "s" : ""}...`;
+          uploadProgress = { group: groupName, count: picked.paths.length, startTime: Date.now() };
 
           try {
             const result = await rpc.request.uploadImages({
@@ -108,9 +129,11 @@
             });
             chapters[num].groups[groupName] = result.urls;
             chapters = { ...chapters };
-            uploadStatus = `Uploaded ${result.urls.length} image${result.urls.length > 1 ? "s" : ""}!`;
-            setTimeout(() => { uploadStatus = null; uploadingChapter = null; }, 2000);
+            uploadProgress = null;
+            uploadStatus = `Uploaded ${result.urls.length} image${result.urls.length > 1 ? "s" : ""} to ${groupName}`;
+            setTimeout(() => { uploadStatus = null; uploadingChapter = null; }, 2500);
           } catch (e: any) {
+            uploadProgress = null;
             uploadStatus = null;
             uploadingChapter = null;
             uploadError = `Upload failed: ${e.message ?? "Unknown error"}`;
@@ -174,7 +197,8 @@
     if (!picked || picked.paths.length === 0) return;
 
     uploadingChapter = chapterNum;
-    uploadStatus = `Uploading ${picked.paths.length} image${picked.paths.length > 1 ? "s" : ""}...`;
+    uploadProgress = { group: groupName, count: picked.paths.length, startTime: Date.now() };
+    uploadStatus = null;
 
     try {
       const result = await rpc.request.uploadImages({
@@ -185,16 +209,15 @@
       });
 
       if (chapters[chapterNum]) {
-        if (!chapters[chapterNum].groups[groupName]) {
-          chapters[chapterNum].groups[groupName] = [];
-        }
-        chapters[chapterNum].groups[groupName].push(...result.urls);
+        chapters[chapterNum].groups[groupName] = result.urls;
         chapters = { ...chapters };
       }
 
-      uploadStatus = `Uploaded ${result.urls.length} image${result.urls.length > 1 ? "s" : ""}!`;
-      setTimeout(() => { uploadStatus = null; uploadingChapter = null; }, 2000);
+      uploadProgress = null;
+      uploadStatus = `Uploaded ${result.urls.length} image${result.urls.length > 1 ? "s" : ""} to ${groupName}`;
+      setTimeout(() => { uploadStatus = null; uploadingChapter = null; }, 2500);
     } catch (e: any) {
+      uploadProgress = null;
       uploadStatus = null;
       uploadingChapter = null;
       uploadError = `Upload failed: ${e.message ?? "Unknown error"}`;
@@ -440,8 +463,23 @@
         </div>
       {/if}
 
+      {#if uploadProgress}
+        <div class="upload-progress-bar">
+          <div class="upload-progress-inner">
+            <div class="upload-progress-shimmer"></div>
+          </div>
+          <div class="upload-progress-info">
+            <span class="upload-progress-label">
+              Uploading {uploadProgress.count} image{uploadProgress.count !== 1 ? "s" : ""}
+              <span class="upload-progress-group">to {uploadProgress.group}</span>
+            </span>
+            <span class="upload-progress-elapsed">{elapsedStr}</span>
+          </div>
+        </div>
+      {/if}
+
       {#if uploadStatus}
-        <div class="upload-toast">{uploadStatus}</div>
+        <div class="upload-toast upload-toast-success">{uploadStatus}</div>
       {/if}
 
       {#if uploadError}
@@ -1077,17 +1115,83 @@
 
   .url-link:hover { text-decoration: underline; }
 
-  .upload-toast {
+  .upload-progress-bar {
     position: fixed;
     bottom: 24px;
     right: 24px;
-    padding: 10px 18px;
+    width: 340px;
     background: var(--bg-surface);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
-    font-size: 0.8rem;
+    z-index: 52;
+    overflow: hidden;
+  }
+
+  .upload-progress-inner {
+    height: 3px;
+    background: var(--bg-elevated);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-progress-shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--accent-blue) 40%,
+      var(--accent-blue) 60%,
+      transparent 100%
+    );
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .upload-progress-info {
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .upload-progress-label {
+    font-size: 0.78rem;
+    font-weight: 600;
     color: var(--text-primary);
+  }
+
+  .upload-progress-group {
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 2px;
+  }
+
+  .upload-progress-elapsed {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .upload-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 18px;
+    background: var(--bg-surface);
+    border: 1px solid var(--accent-green);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--accent-green);
     z-index: 50;
   }
 
