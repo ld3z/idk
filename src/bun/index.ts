@@ -16,6 +16,8 @@ type SettingsRpcSchema = {
 		requests: {
 			getSettings: { params: void; response: { settings: AppSettings; dbPath: string } };
 			saveSettings: { params: AppSettings; response: { ok: true } };
+			getTheme: { params: void; response: { theme: string } };
+			setTheme: { params: { theme: string }; response: { ok: true } };
 		};
 		messages: Record<never, never>;
 	};
@@ -56,6 +58,12 @@ function createSettingsDb(dbPath: string) {
 		)
 	`);
 	db.run(`INSERT OR IGNORE INTO app_settings (id) VALUES (1)`);
+
+	const cols = db.query(`PRAGMA table_info(app_settings)`).all() as { name: string }[];
+	if (!cols.some((c) => c.name === "theme")) {
+		db.run(`ALTER TABLE app_settings ADD COLUMN theme TEXT NOT NULL DEFAULT 'light'`);
+	}
+
 	return db;
 }
 
@@ -85,6 +93,14 @@ const settingsRpc = BrowserView.defineRPC<SettingsRpcSchema>({
 					settings: { ...DEFAULT_SETTINGS, ...row },
 					dbPath,
 				};
+			},
+			getTheme: () => {
+				const row = db.query(`SELECT theme FROM app_settings WHERE id = 1`).get() as { theme: string } | undefined;
+				return { theme: row?.theme ?? "light" };
+			},
+			setTheme: (params) => {
+				db.query(`UPDATE app_settings SET theme = ? WHERE id = 1`).run(params.theme);
+				return { ok: true as const };
 			},
 			saveSettings: (settings) => {
 				db.query(`

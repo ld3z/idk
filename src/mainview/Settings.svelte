@@ -290,7 +290,7 @@
 
     <div class="settings-card card-wide">
       <div class="card-header">
-        <div class="card-header-icon" style="background: #f1f5f9; color: #1e293b">
+        <div class="card-header-icon" style="background: var(--bg-elevated); color: var(--text-primary)">
           <PhGithubLogoFill class="card-h-icon" />
         </div>
         <div>

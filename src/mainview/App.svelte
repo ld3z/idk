@@ -11,11 +11,26 @@
   import PhCheckCircleFill from "~icons/ph/check-circle-fill";
   import PhXCircleFill from "~icons/ph/x-circle-fill";
   import PhInfoFill from "~icons/ph/info-fill";
+  import PhSun from "~icons/ph/sun";
+  import PhMoon from "~icons/ph/moon";
 
   let rpc: any;
   let toast = $state<{ kind: "success" | "error" | "info"; message: string } | null>(null);
 
   let mounted = $state(true);
+
+  let dark = $state(false);
+
+  function applyTheme(isDark: boolean) {
+    document.documentElement.classList.toggle("dark", isDark);
+    document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+  }
+
+  function toggleTheme() {
+    dark = !dark;
+    applyTheme(dark);
+    rpc?.request.setTheme({ theme: dark ? "dark" : "light" });
+  }
 
   let activeNav = $state("Library");
   const navItems = [
@@ -34,6 +49,10 @@
     });
 
     new Electroview({ rpc });
+
+    const { theme } = await rpc.request.getTheme();
+    dark = theme === "dark";
+    applyTheme(dark);
   });
 
 </script>
@@ -72,6 +91,13 @@
       </nav>
 
       <div class="topbar-right">
+        <button class="theme-toggle" type="button" onclick={toggleTheme} title={dark ? "Light mode" : "Dark mode"}>
+          {#if dark}
+            <PhSun class="theme-toggle-icon" />
+          {:else}
+            <PhMoon class="theme-toggle-icon" />
+          {/if}
+        </button>
         <span class="version-tag">v{APP_VERSION}</span>
       </div>
     </div>
@@ -108,10 +134,6 @@
     box-sizing: border-box;
   }
 
-  :global(html) {
-    color-scheme: light;
-  }
-
   :global(body) {
     background: var(--bg-base);
     color: var(--text-primary);
@@ -125,6 +147,7 @@
     --bg-surface: #ffffff;
     --bg-elevated: #f1f5f9;
     --bg-hover: #f8fafc;
+    --topbar-bg: rgba(255, 255, 255, 0.85);
     --border-subtle: #e8ecf1;
     --border-default: #d1d9e0;
     --border-strong: #b0bac5;
@@ -149,6 +172,32 @@
     --mono: "IBM Plex Mono", ui-monospace, monospace;
   }
 
+  :global(:root.dark) {
+    --bg-base: #000000;
+    --bg-surface: #0a0a0a;
+    --bg-elevated: #141414;
+    --bg-hover: #111111;
+    --topbar-bg: rgba(0, 0, 0, 0.85);
+    --border-subtle: #1a1a1a;
+    --border-default: #2a2a2a;
+    --border-strong: #3a3a3a;
+    --text-primary: #f0f0f0;
+    --text-secondary: #a0a0a0;
+    --text-muted: #606060;
+    --accent-blue: #3b82f6;
+    --accent-blue-light: rgba(59, 130, 246, 0.15);
+    --accent-blue-hover: #60a5fa;
+    --accent-green: #10b981;
+    --accent-green-light: rgba(16, 185, 129, 0.15);
+    --accent-amber: #f59e0b;
+    --accent-amber-light: rgba(245, 158, 11, 0.15);
+    --accent-rose: #f43f5e;
+    --accent-rose-light: rgba(244, 63, 94, 0.15);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.5);
+  }
+
   .app-root {
     min-height: 100vh;
     display: flex;
@@ -160,7 +209,7 @@
     position: sticky;
     top: 0;
     z-index: 30;
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--topbar-bg);
     backdrop-filter: blur(12px) saturate(1.8);
     border-bottom: 1px solid var(--border-subtle);
   }
@@ -245,6 +294,30 @@
   .topbar-right {
     display: flex;
     align-items: center;
+    gap: 8px;
+  }
+
+  .theme-toggle {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.15s ease;
+  }
+
+  .theme-toggle:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-color: var(--border-default);
+  }
+
+  :global(.theme-toggle-icon) {
+    font-size: 1rem;
   }
 
   .version-tag {
