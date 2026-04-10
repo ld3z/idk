@@ -1,9 +1,10 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync } from "node:fs";
 import { join, basename } from "node:path";
 import { Database } from "bun:sqlite";
 import { BrowserView, BrowserWindow, Updater, Utils } from "electrobun/bun";
 import type { MangaJson, MangaEntry, Chapter } from "../shared/types.ts";
 import { mergeChapterIntoExisting } from "../shared/chapterMerge.ts";
+import { isMangaJsonPayload, mangaMetadataBasename, METADATA_JSON_DENYLIST } from "../shared/mangaMetadata.ts";
 
 type AppSettings = {
 	imgchestApiKey: string;
@@ -98,18 +99,56 @@ function initDb(dbPath: string) {
 	return db;
 }
 
-function readMangaJson(folderPath: string): MangaJson | null {
-	const filePath = join(folderPath, "manga.json");
-	if (!existsSync(filePath)) return null;
+function pathsEqual(a: string, b: string): boolean {
+	if (a === b) return true;
+	if (process.platform === "win32") return a.toLowerCase() === b.toLowerCase();
+	return false;
+}
+
+function tryReadMangaAt(fullPath: string): MangaJson | null {
 	try {
-		return JSON.parse(readFileSync(filePath, "utf-8"));
+		if (!existsSync(fullPath)) return null;
+		const data: unknown = JSON.parse(readFileSync(fullPath, "utf-8"));
+		return isMangaJsonPayload(data) ? data : null;
 	} catch {
 		return null;
 	}
 }
 
+/** Locate manga metadata JSON: legacy `manga.json` first, then first valid `*.json` in the folder. */
+function resolveMangaMetadataFile(folderPath: string): { fullPath: string; manga: MangaJson } | null {
+	const legacy = join(folderPath, "manga.json");
+	const fromLegacy = tryReadMangaAt(legacy);
+	if (fromLegacy) return { fullPath: legacy, manga: fromLegacy };
+
+	let names: string[] = [];
+	try {
+		names = readdirSync(folderPath);
+	} catch {
+		return null;
+	}
+	const jsonFiles = names
+		.filter((f) => f.endsWith(".json") && !METADATA_JSON_DENYLIST.has(f.toLowerCase()))
+		.sort();
+	for (const f of jsonFiles) {
+		const p = join(folderPath, f);
+		const m = tryReadMangaAt(p);
+		if (m) return { fullPath: p, manga: m };
+	}
+	return null;
+}
+
+function readMangaJson(folderPath: string): MangaJson | null {
+	return resolveMangaMetadataFile(folderPath)?.manga ?? null;
+}
+
 function writeMangaJson(folderPath: string, manga: MangaJson) {
-	writeFileSync(join(folderPath, "manga.json"), JSON.stringify(manga, null, 2), "utf-8");
+	const newPath = join(folderPath, mangaMetadataBasename(manga.title));
+	const prev = resolveMangaMetadataFile(folderPath);
+	writeFileSync(newPath, JSON.stringify(manga, null, 2), "utf-8");
+	if (prev && !pathsEqual(prev.fullPath, newPath) && existsSync(prev.fullPath)) {
+		unlinkSync(prev.fullPath);
+	}
 }
 
 function loadMangaEntry(row: { id: number; folderPath: string }): MangaEntry {
@@ -259,7 +298,7 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 				const row = db.query(`SELECT folderPath FROM manga_library WHERE id = ?`).get(params.id) as { folderPath: string } | undefined;
 				if (!row) throw new Error("Manga not found");
 				const manga = readMangaJson(row.folderPath);
-				if (!manga) throw new Error("manga.json not found");
+				if (!manga) throw new Error("Manga metadata file not found");
 				const num = params.chapterNum;
 				const existing = manga.chapters[num];
 				manga.chapters[num] = existing
@@ -273,7 +312,7 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 				const row = db.query(`SELECT folderPath FROM manga_library WHERE id = ?`).get(params.id) as { folderPath: string } | undefined;
 				if (!row) throw new Error("Manga not found");
 				const manga = readMangaJson(row.folderPath);
-				if (!manga) throw new Error("manga.json not found");
+				if (!manga) throw new Error("Manga metadata file not found");
 				delete manga.chapters[params.chapterNum];
 				writeMangaJson(row.folderPath, manga);
 				return { ok: true as const };

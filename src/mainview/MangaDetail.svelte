@@ -726,7 +726,7 @@
   <div class="modal-overlay" role="dialog" aria-modal="true" onclick={() => (confirmRemoveChapter = null)}>
     <div class="modal" onclick={(e) => e.stopPropagation()}>
       <h2 class="modal-title">Remove Chapter {confirmRemoveChapter}?</h2>
-      <p class="modal-message">This will remove the chapter from <code>manga.json</code>. Image URLs will be lost.</p>
+      <p class="modal-message">This will remove the chapter from the metadata JSON file for this series. Image URLs will be lost.</p>
       <div class="modal-actions">
         <button class="modal-btn-cancel" type="button" onclick={() => (confirmRemoveChapter = null)}>Cancel</button>
         <button class="modal-btn-danger" type="button" onclick={() => confirmRemoveChapter !== null && removeChapter(confirmRemoveChapter)}>
