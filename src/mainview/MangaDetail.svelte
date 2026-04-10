@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { prepare, layout } from "@chenglou/pretext";
   import type { MangaEntry, MangaJson, Chapter } from "../shared/types.ts";
+  import { mergeChapterIntoExisting } from "../shared/chapterMerge.ts";
   import PhArrowLeft from "~icons/ph/arrow-left";
   import PhFloppyDisk from "~icons/ph/floppy-disk";
   import PhCheck from "~icons/ph/check";
@@ -153,7 +154,8 @@
 
     try {
       await rpc.request.addChapter({ id: entry.id, chapterNum: num, chapter });
-      chapters[num] = chapter;
+      const prior = chapters[num];
+      chapters[num] = prior ? mergeChapterIntoExisting(prior, chapter, num) : chapter;
       chapters = { ...chapters };
 
       if (groupName) {

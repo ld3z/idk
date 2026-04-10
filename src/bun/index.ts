@@ -3,6 +3,7 @@ import { join, basename } from "node:path";
 import { Database } from "bun:sqlite";
 import { BrowserView, BrowserWindow, Updater, Utils } from "electrobun/bun";
 import type { MangaJson, MangaEntry, Chapter } from "../shared/types.ts";
+import { mergeChapterIntoExisting } from "../shared/chapterMerge.ts";
 
 type AppSettings = {
 	imgchestApiKey: string;
@@ -259,7 +260,11 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 				if (!row) throw new Error("Manga not found");
 				const manga = readMangaJson(row.folderPath);
 				if (!manga) throw new Error("manga.json not found");
-				manga.chapters[params.chapterNum] = params.chapter;
+				const num = params.chapterNum;
+				const existing = manga.chapters[num];
+				manga.chapters[num] = existing
+					? mergeChapterIntoExisting(existing, params.chapter, num)
+					: params.chapter;
 				writeMangaJson(row.folderPath, manga);
 				return { ok: true as const };
 			},
