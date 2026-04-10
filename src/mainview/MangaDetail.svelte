@@ -11,6 +11,7 @@
   import PhUploadSimple from "~icons/ph/upload-simple";
   import PhImage from "~icons/ph/image";
   import PhFolderOpen from "~icons/ph/folder-open";
+  import PhPencilSimple from "~icons/ph/pencil-simple";
 
   interface Props {
     rpc: any;
@@ -45,6 +46,45 @@
   let newGroupName = $state("");
 
   let confirmRemoveChapter = $state<string | null>(null);
+
+  let editingChapter = $state<string | null>(null);
+  let editChapterNum = $state("");
+  let editTitle = $state("");
+  let editVolume = $state("");
+  let editLastUpdated = $state("");
+
+  function startEditChapter(chNum: string) {
+    const ch = chapters[chNum];
+    if (!ch) return;
+    editingChapter = chNum;
+    editChapterNum = chNum;
+    editTitle = ch.title;
+    editVolume = ch.volume;
+    editLastUpdated = ch.last_updated;
+  }
+
+  function cancelEditChapter() {
+    editingChapter = null;
+  }
+
+  function applyEditChapter() {
+    if (!editingChapter || !chapters[editingChapter]) return;
+    const oldNum = editingChapter;
+    const newNum = editChapterNum.trim() || oldNum;
+    const ch = chapters[oldNum];
+    ch.title = editTitle;
+    ch.volume = editVolume;
+    ch.last_updated = editLastUpdated || String(Math.floor(Date.now() / 1000));
+
+    if (newNum !== oldNum) {
+      delete chapters[oldNum];
+      chapters[newNum] = ch;
+    }
+
+    chapters = { ...chapters };
+    editingChapter = null;
+    if (expandedChapter === oldNum) expandedChapter = newNum;
+  }
 
   let elapsedStr = $state("");
   let elapsedInterval: ReturnType<typeof setInterval> | null = null;
@@ -224,14 +264,26 @@
     }
   }
 
-  function sortedChapterKeys(chs: Record<string, Chapter>): string[] {
-    return Object.keys(chs).sort((a, b) => {
+  let groupFilter = $state<string | null>(null);
+
+  let allGroups = $derived.by(() => {
+    const set = new Set<string>();
+    for (const ch of Object.values(chapters)) {
+      for (const g of Object.keys(ch.groups)) set.add(g);
+    }
+    return [...set].sort();
+  });
+
+  let filteredChapterKeys = $derived.by(() => {
+    const keys = Object.keys(chapters).sort((a, b) => {
       const na = parseFloat(a);
       const nb = parseFloat(b);
       if (!isNaN(na) && !isNaN(nb)) return na - nb;
       return a.localeCompare(b);
     });
-  }
+    if (!groupFilter) return keys;
+    return keys.filter((k) => groupFilter! in (chapters[k]?.groups ?? {}));
+  });
 
   function formatTimestamp(ts: string): string {
     if (!ts) return "";
@@ -319,7 +371,7 @@
     <div class="chapters-section">
       <div class="chapters-header">
         <h2 class="section-title">Chapters</h2>
-        <span class="chapter-count">{Object.keys(chapters).length}</span>
+        <span class="chapter-count">{filteredChapterKeys.length}{groupFilter ? ` / ${Object.keys(chapters).length}` : ""}</span>
         <div class="chapters-header-actions">
           <button class="add-chapter-btn" type="button" onclick={() => (showAddChapter = true)}>
             <PhPlus />
@@ -327,6 +379,25 @@
           </button>
         </div>
       </div>
+
+      {#if allGroups.length > 1}
+        <div class="group-filter-bar">
+          <button
+            class="group-filter-chip"
+            class:active={groupFilter === null}
+            type="button"
+            onclick={() => (groupFilter = null)}
+          >All</button>
+          {#each allGroups as g}
+            <button
+              class="group-filter-chip"
+              class:active={groupFilter === g}
+              type="button"
+              onclick={() => (groupFilter = groupFilter === g ? null : g)}
+            >{g}</button>
+          {/each}
+        </div>
+      {/if}
 
       {#if showAddChapter}
         <div class="add-chapter-form">
@@ -361,7 +432,7 @@
         </div>
       {:else}
         <div class="chapters-list">
-          {#each sortedChapterKeys(chapters) as chNum}
+          {#each filteredChapterKeys as chNum}
             {@const ch = chapters[chNum]}
             <div class="chapter-item">
               <button
@@ -376,7 +447,7 @@
                     <PhCaretRight />
                   {/if}
                 </span>
-                <span class="chapter-num">Ch. {chNum}</span>
+                <span class="chapter-num">Ch. {chNum}{#if ch.volume} <span class="chapter-vol-inline">v{ch.volume}</span>{/if}</span>
                 {#if ch.title && ch.title !== chNum}
                   <span class="chapter-title">{ch.title}</span>
                 {/if}
@@ -389,6 +460,14 @@
                     <span class="chapter-date">{formatTimestamp(ch.last_updated)}</span>
                   {/if}
                 </span>
+              </button>
+              <button
+                class="chapter-edit-btn"
+                type="button"
+                title="Edit chapter"
+                onclick={(e) => { e.stopPropagation(); startEditChapter(chNum); expandedChapter = chNum; }}
+              >
+                <PhPencilSimple />
               </button>
               <button
                 class="chapter-upload-btn"
@@ -410,6 +489,33 @@
 
               {#if expandedChapter === chNum}
                 <div class="chapter-detail">
+                  {#if editingChapter === chNum}
+                    <div class="chapter-edit-form">
+                      <div class="chapter-edit-row">
+                        <div class="field field-sm">
+                          <label class="field-label">Chapter #</label>
+                          <input class="field-input" type="text" bind:value={editChapterNum} />
+                        </div>
+                        <div class="field field-sm">
+                          <label class="field-label">Title</label>
+                          <input class="field-input" type="text" bind:value={editTitle} placeholder="Chapter title" />
+                        </div>
+                        <div class="field field-sm">
+                          <label class="field-label">Volume</label>
+                          <input class="field-input" type="text" bind:value={editVolume} placeholder="e.g. 3" />
+                        </div>
+                        <div class="field field-sm">
+                          <label class="field-label">Last Updated</label>
+                          <input class="field-input" type="text" bind:value={editLastUpdated} placeholder="Unix timestamp" />
+                        </div>
+                      </div>
+                      <div class="chapter-edit-actions">
+                        <button class="btn-secondary" type="button" onclick={cancelEditChapter}>Cancel</button>
+                        <button class="btn-primary" type="button" onclick={applyEditChapter}>Apply</button>
+                      </div>
+                    </div>
+                  {/if}
+
                   {#each Object.entries(ch.groups) as [groupName, urls]}
                     <div class="group-section">
                       <div class="group-header">
@@ -757,6 +863,40 @@
     margin-left: auto;
   }
 
+  .group-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 22px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .group-filter-chip {
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-base);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .group-filter-chip:hover {
+    border-color: var(--border-default);
+    color: var(--text-secondary);
+  }
+
+  .group-filter-chip.active {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: #fff;
+  }
+
   .add-chapter-btn {
     display: flex;
     align-items: center;
@@ -861,9 +1001,9 @@
   .chapter-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     width: 100%;
-    padding: 14px 88px 14px 22px;
+    padding: 14px 118px 14px 22px;
     border: none;
     background: none;
     cursor: pointer;
@@ -884,6 +1024,12 @@
     color: var(--text-primary);
     min-width: 60px;
     flex-shrink: 0;
+  }
+
+  .chapter-vol-inline {
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 2px;
   }
 
   .chapter-title {
@@ -928,6 +1074,30 @@
     color: var(--text-muted);
     white-space: nowrap;
   }
+
+  .chapter-edit-btn {
+    position: absolute;
+    right: 86px;
+    top: 11px;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease;
+    z-index: 2;
+  }
+
+  .chapter-item:hover .chapter-edit-btn { opacity: 1; }
+
+  .chapter-edit-btn:hover { color: var(--accent-blue); }
+
+  .chapter-edit-btn :global(svg) { font-size: 0.9rem; }
 
   .chapter-upload-btn {
     position: absolute;
@@ -984,6 +1154,26 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+  }
+
+  .chapter-edit-form {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+  }
+
+  .chapter-edit-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 80px 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .chapter-edit-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
   }
 
   .group-section {
