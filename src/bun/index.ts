@@ -30,6 +30,7 @@ type RpcSchema = {
 			pickFolder: { params: void; response: { path: string } | null };
 			pickImages: { params: void; response: { paths: string[] } | null };
 			searchMangaBaka: { params: { query: string }; response: { results: { id: number; title: string; description: string; author: string; artist: string; cover: string }[] } };
+			openExternal: { params: { url: string }; response: { ok: boolean } };
 		};
 		messages: Record<never, never>;
 	};
@@ -316,6 +317,11 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 				});
 				if (!paths || paths.length === 0) return null;
 				return { paths };
+			},
+
+			openExternal: (params) => {
+				const ok = Utils.openExternal(params.url);
+				return { ok };
 			},
 
 			// --- MangaBaka Search ---

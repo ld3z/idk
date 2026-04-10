@@ -639,7 +639,15 @@
                           <div class="url-item">
                             <span class="url-index">{i + 1}</span>
                             <div class="url-cell">
-                              <a class="url-link" href={url} target="_blank" rel="noopener">{url}</a>
+                              <a
+                                class="url-link"
+                                href={url}
+                                rel="noopener noreferrer"
+                                onclick={(e) => {
+                                  e.preventDefault();
+                                  void rpc.request.openExternal({ url });
+                                }}
+                              >{url}</a>
                               <figure class="url-thumb" aria-hidden="true">
                                 <img
                                   src={url}
