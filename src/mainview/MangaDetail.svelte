@@ -394,6 +394,23 @@
     if (fetchFields.cover) cover = fetchPicked.cover;
     showFetchModal = false;
   }
+
+  let modalScrollLocked = $derived(showFetchModal || confirmRemoveChapter !== null);
+
+  $effect(() => {
+    if (!modalScrollLocked) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  });
+
+  function isLikelyCoverUrl(s: string): boolean {
+    if (!s?.trim()) return false;
+    const t = s.trim();
+    return t.startsWith("http://") || t.startsWith("https://") || t.startsWith("data:image/");
+  }
 </script>
 
 <div class="detail-page">
@@ -739,8 +756,15 @@
 {/if}
 
 {#if showFetchModal}
-  <div class="modal-overlay" role="dialog" aria-modal="true" onclick={() => (showFetchModal = false)}>
-    <div class="fetch-modal" onclick={(e) => e.stopPropagation()}>
+  <div class="modal-overlay" role="dialog"
+    aria-modal="true"
+    onclick={() => (showFetchModal = false)}
+  >
+    <div
+      class="fetch-modal"
+      class:fetch-modal--preview={fetchPhase === "preview"}
+      onclick={(e) => e.stopPropagation()}
+    >
 
       {#if fetchPhase === "search"}
         <h2 class="fetch-modal-title">Fetch Metadata</h2>
@@ -787,47 +811,93 @@
         </div>
 
       {:else if fetchPhase === "preview"}
-        <div class="fetch-results-header">
-          <h2 class="fetch-modal-title">Preview Changes</h2>
-          <button class="fetch-back-btn" type="button" onclick={() => (fetchPhase = "results")}>Back</button>
-        </div>
         {#if fetchPicked}
-          <div class="fetch-preview-list">
+          <div class="fetch-preview-masthead">
+            <button class="fetch-back-btn fetch-preview-back" type="button" onclick={() => (fetchPhase = "results")}>
+              Back
+            </button>
+            <p class="fetch-preview-eyebrow">Merge preview</p>
+            <h2 class="fetch-preview-headline">{fetchPicked.title}</h2>
+            <p class="fetch-preview-lede">
+              Turn fields on to replace your library copy with the MangaBaka value. Off keeps what you already have.
+            </p>
+          </div>
+
+          <div class="fetch-preview-stack">
             {#each [
               { key: "title", label: "Title", current: title, fetched: fetchPicked.title },
               { key: "description", label: "Description", current: description, fetched: fetchPicked.description },
               { key: "author", label: "Author", current: author, fetched: fetchPicked.author },
               { key: "artist", label: "Artist", current: artist, fetched: fetchPicked.artist },
               { key: "cover", label: "Cover", current: cover, fetched: fetchPicked.cover },
-            ] as field}
-              <label class="fetch-preview-row">
-                <input type="checkbox" bind:checked={fetchFields[field.key]} />
-                <div class="fetch-preview-field">
-                  <span class="fetch-preview-label">{field.label}</span>
-                  {#if field.key === "description"}
-                    <span
-                      class="fetch-preview-current fetch-preview-wrap"
-                      class:empty={!field.current}
-                      style="height:{textHeight(field.current || '', 440, PREVIEW_FONT, PREVIEW_LINE_HEIGHT)}px"
-                    >{field.current || "(empty)"}</span>
-                    <span class="fetch-preview-arrow">&#8594;</span>
-                    <span
-                      class="fetch-preview-new fetch-preview-wrap"
-                      class:empty={!field.fetched}
-                      style="height:{textHeight(field.fetched || '', 440, PREVIEW_FONT, PREVIEW_LINE_HEIGHT)}px"
-                    >{field.fetched || "(empty)"}</span>
-                  {:else}
-                    <span class="fetch-preview-current" class:empty={!field.current}>{field.current || "(empty)"}</span>
-                    <span class="fetch-preview-arrow">&#8594;</span>
-                    <span class="fetch-preview-new" class:empty={!field.fetched}>{field.fetched || "(empty)"}</span>
-                  {/if}
+            ] as field, i (field.key)}
+              <label class="fetch-diff-card" class:fetch-diff-card--skip={!fetchFields[field.key]}>
+                <input class="fetch-diff-check" type="checkbox" bind:checked={fetchFields[field.key]} />
+                <span class="fetch-diff-toggle" aria-hidden="true"></span>
+                <div class="fetch-diff-inner">
+                  <div class="fetch-diff-rail">
+                    <span class="fetch-diff-index">{String(i + 1).padStart(2, "0")}</span>
+                    <span class="fetch-diff-name">{field.label}</span>
+                    <span class="fetch-diff-pill" class:on={fetchFields[field.key]} class:off={!fetchFields[field.key]}>
+                      {fetchFields[field.key] ? "Replace" : "Keep"}
+                    </span>
+                  </div>
+                  <div
+                    class="fetch-diff-columns"
+                    class:fetch-diff-columns--cover={field.key === "cover" &&
+                      (isLikelyCoverUrl(field.current) || isLikelyCoverUrl(field.fetched))}
+                  >
+                    <div class="fetch-diff-col fetch-diff-col--from">
+                      <span class="fetch-diff-col-title">In your library</span>
+                      {#if field.key === "cover" && (isLikelyCoverUrl(field.current) || isLikelyCoverUrl(field.fetched))}
+                        <figure class="fetch-cover-frame">
+                          {#if isLikelyCoverUrl(field.current)}
+                            <img src={field.current} alt="" class="fetch-cover-thumb" />
+                          {:else}
+                            <div class="fetch-cover-missing">No image URL</div>
+                          {/if}
+                        </figure>
+                      {:else if field.key === "description"}
+                        <p
+                          class="fetch-diff-body"
+                          class:empty={!field.current}
+                          style="min-height:{textHeight(field.current || '', 280, PREVIEW_FONT, PREVIEW_LINE_HEIGHT)}px"
+                        >{field.current || "Empty — nothing on file."}</p>
+                      {:else}
+                        <p class="fetch-diff-body" class:empty={!field.current}>{field.current || "Empty — nothing on file."}</p>
+                      {/if}
+                    </div>
+                    <div class="fetch-diff-col fetch-diff-col--to">
+                      <span class="fetch-diff-col-title">From MangaBaka</span>
+                      {#if field.key === "cover" && (isLikelyCoverUrl(field.current) || isLikelyCoverUrl(field.fetched))}
+                        <figure class="fetch-cover-frame fetch-cover-frame--incoming">
+                          {#if isLikelyCoverUrl(field.fetched)}
+                            <img src={field.fetched} alt="" class="fetch-cover-thumb" />
+                          {:else}
+                            <div class="fetch-cover-missing">No image URL</div>
+                          {/if}
+                        </figure>
+                      {:else if field.key === "description"}
+                        <p
+                          class="fetch-diff-body fetch-diff-body--incoming"
+                          class:empty={!field.fetched}
+                          style="min-height:{textHeight(field.fetched || '', 280, PREVIEW_FONT, PREVIEW_LINE_HEIGHT)}px"
+                        >{field.fetched || "Nothing returned for this field."}</p>
+                      {:else}
+                        <p class="fetch-diff-body fetch-diff-body--incoming" class:empty={!field.fetched}>
+                          {field.fetched || "Nothing returned for this field."}
+                        </p>
+                      {/if}
+                    </div>
+                  </div>
                 </div>
               </label>
             {/each}
           </div>
-          <div class="fetch-preview-actions">
-            <button class="btn-secondary" type="button" onclick={() => (showFetchModal = false)}>Cancel</button>
-            <button class="btn-primary" type="button" onclick={applyFetchResult}>Apply Selected</button>
+
+          <div class="fetch-preview-actions fetch-preview-actions--bar">
+            <button class="fetch-preview-cancel" type="button" onclick={() => (showFetchModal = false)}>Cancel</button>
+            <button class="fetch-preview-apply" type="button" onclick={applyFetchResult}>Apply toggled fields</button>
           </div>
         {/if}
       {/if}
@@ -836,6 +906,8 @@
 {/if}
 
 <style>
+  @import url("https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400&display=swap");
+
   .detail-page {
     display: flex;
     flex-direction: column;
@@ -1707,6 +1779,8 @@
     place-items: center;
     z-index: 50;
     padding: 20px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .modal {
@@ -1816,9 +1890,15 @@
     padding: 28px;
     max-width: 580px;
     width: 100%;
-    max-height: 80vh;
+    max-height: min(80vh, 900px);
     overflow-y: auto;
+    overscroll-behavior: contain;
     box-shadow: var(--shadow-lg);
+  }
+
+  .fetch-modal--preview {
+    max-width: min(720px, 100%);
+    padding: 16px 0 0;
   }
 
   .fetch-modal-title {
@@ -1957,78 +2037,320 @@
     word-break: break-word;
   }
 
-  /* Preview */
-  .fetch-preview-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 18px;
+  /* MangaBaka merge preview (editorial diff) */
+  .fetch-preview-masthead {
+    position: relative;
+    padding: 12px 28px 22px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 80%, var(--accent-blue));
+    margin-bottom: 4px;
   }
 
-  .fetch-preview-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    cursor: pointer;
-    padding: 10px 12px;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    background: var(--bg-base);
-    transition: border-color 0.12s ease;
+  .fetch-preview-back {
+    position: absolute;
+    top: 10px;
+    right: 24px;
   }
 
-  .fetch-preview-row:hover { border-color: var(--border-default); }
-
-  .fetch-preview-row input[type="checkbox"] {
-    margin-top: 2px;
-    flex-shrink: 0;
-    accent-color: var(--accent-blue);
-  }
-
-  .fetch-preview-field {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .fetch-preview-label {
+  .fetch-preview-eyebrow {
+    margin: 0 0 6px;
     font-family: var(--mono);
-    font-size: 0.68rem;
+    font-size: 0.65rem;
     font-weight: 600;
-    color: var(--text-muted);
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    color: var(--accent-blue);
   }
 
-  .fetch-preview-current {
-    font-size: 0.75rem;
+  .fetch-preview-headline {
+    margin: 0 0 10px;
+    padding-right: 88px;
+    font-family: "Newsreader", Georgia, "Times New Roman", serif;
+    font-size: 1.65rem;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+
+  .fetch-preview-lede {
+    margin: 0;
+    max-width: 42em;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+  }
+
+  .fetch-preview-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 28px 8px;
+  }
+
+  .fetch-diff-card {
+    position: relative;
+    display: block;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-base);
+    overflow: hidden;
+  }
+
+  .fetch-diff-card--skip {
+    opacity: 0.88;
+    background: color-mix(in srgb, var(--bg-base) 96%, var(--text-muted));
+  }
+
+  .fetch-diff-card--skip .fetch-diff-body--incoming {
+    color: var(--text-muted);
+  }
+
+  .fetch-diff-check {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    opacity: 0;
+  }
+
+  .fetch-diff-card:has(.fetch-diff-check:focus-visible) {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+  }
+
+  .fetch-diff-toggle {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 44px;
+    height: 26px;
+    border-radius: 999px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+    pointer-events: none;
+  }
+
+  .fetch-diff-toggle::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  .fetch-diff-card:has(.fetch-diff-check:checked) .fetch-diff-toggle {
+    background: color-mix(in srgb, var(--accent-blue) 22%, var(--bg-elevated));
+    border-color: var(--accent-blue);
+  }
+
+  .fetch-diff-card:has(.fetch-diff-check:checked) .fetch-diff-toggle::after {
+    transform: translateX(18px);
+    background: var(--accent-blue);
+  }
+
+  .fetch-diff-inner {
+    padding: 14px 58px 14px 14px;
+  }
+
+  .fetch-diff-rail {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--border-subtle);
+  }
+
+  .fetch-diff-index {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+  }
+
+  .fetch-diff-name {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-primary);
+  }
+
+  .fetch-diff-pill {
+    margin-left: auto;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .fetch-diff-pill.on {
+    background: color-mix(in srgb, var(--accent-green) 18%, transparent);
+    color: var(--accent-green);
+    border: 1px solid color-mix(in srgb, var(--accent-green) 35%, transparent);
+  }
+
+  .fetch-diff-pill.off {
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .fetch-diff-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+
+  @media (max-width: 620px) {
+    .fetch-diff-columns {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .fetch-diff-columns--cover {
+    align-items: stretch;
+  }
+
+  .fetch-diff-col {
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--bg-surface) 85%, var(--bg-base));
+    border: 1px solid var(--border-subtle);
+  }
+
+  .fetch-diff-col--to {
+    border-color: color-mix(in srgb, var(--accent-blue) 22%, var(--border-subtle));
+    background: color-mix(in srgb, var(--accent-blue-light) 35%, var(--bg-surface));
+  }
+
+  .fetch-diff-card--skip .fetch-diff-col--to {
+    border-color: var(--border-subtle);
+    background: color-mix(in srgb, var(--bg-surface) 85%, var(--bg-base));
+  }
+
+  .fetch-diff-col-title {
+    display: block;
+    margin-bottom: 8px;
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .fetch-diff-body {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
     color: var(--text-secondary);
     word-break: break-word;
-    line-height: 17px;
   }
 
-  .fetch-preview-current.empty { color: var(--text-muted); font-style: italic; }
-
-  .fetch-preview-arrow {
-    font-size: 0.7rem;
-    color: var(--accent-blue);
-    font-weight: 600;
+  .fetch-diff-body.empty {
+    color: var(--text-muted);
+    font-style: italic;
   }
 
-  .fetch-preview-new {
-    font-size: 0.75rem;
-    color: var(--accent-green);
+  .fetch-diff-body--incoming {
+    color: var(--text-primary);
     font-weight: 500;
-    word-break: break-word;
-    line-height: 17px;
   }
 
-  .fetch-preview-new.empty { color: var(--text-muted); font-style: italic; }
-
-  .fetch-preview-wrap {
+  .fetch-cover-frame {
+    margin: 0;
+    border-radius: 6px;
     overflow: hidden;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+    aspect-ratio: 2 / 3;
+    max-height: 200px;
+    width: 100%;
+    max-width: 140px;
+  }
+
+  .fetch-cover-frame--incoming {
+    border-color: color-mix(in srgb, var(--accent-blue) 40%, var(--border-subtle));
+  }
+
+  .fetch-cover-thumb {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .fetch-cover-missing {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    min-height: 120px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 8px;
+  }
+
+  .fetch-preview-actions--bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+    padding: 18px 28px 24px;
+    margin-top: 8px;
+    border-top: 1px solid var(--border-subtle);
+    background: color-mix(in srgb, var(--bg-elevated) 40%, var(--bg-surface));
+  }
+
+  .fetch-preview-cancel {
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .fetch-preview-cancel:hover {
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+
+  .fetch-preview-apply {
+    padding: 10px 22px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: var(--accent-blue);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .fetch-preview-apply:hover {
+    background: var(--accent-blue-hover);
   }
 
   .fetch-preview-actions {
