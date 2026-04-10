@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { prepare, layout } from "@chenglou/pretext";
   import type { MangaEntry } from "../shared/types.ts";
   import PhPlus from "~icons/ph/plus";
   import PhMagnifyingGlass from "~icons/ph/magnifying-glass";
@@ -94,6 +95,21 @@
     }
     return latest ? formatDate(String(latest)) : "";
   }
+
+  /** Narrowest column (150px @640px) − padding − border; pretext at min width so small cards never clip */
+  const CARD_TEXT_WIDTH = 112;
+  const CARD_TITLE_FONT = '600 14.4px "DM Sans", ui-sans-serif, system-ui, sans-serif';
+  const CARD_TITLE_LINE_HEIGHT = 17;
+  const CARD_AUTHOR_FONT = '400 12px "DM Sans", ui-sans-serif, system-ui, sans-serif';
+  const CARD_AUTHOR_LINE_HEIGHT = 15;
+  const CARD_TEXT_FUDGE = 2;
+
+  function textHeight(text: string, widthPx: number, font: string, lh: number, minLines = 1): number {
+    if (!text) return lh * minLines + CARD_TEXT_FUDGE;
+    const p = prepare(text, font);
+    const { height } = layout(p, widthPx, lh);
+    return Math.max(height, lh * minLines) + CARD_TEXT_FUDGE;
+  }
 </script>
 
 <div class="library-page">
@@ -165,8 +181,14 @@
               {/if}
             </div>
             <div class="card-body">
-              <h3 class="card-title">{entry.manga.title}</h3>
-              <p class="card-author">{entry.manga.author || entry.manga.artist || "Unknown"}</p>
+              <h3
+                class="card-title"
+                style="min-height:{textHeight(entry.manga.title, CARD_TEXT_WIDTH, CARD_TITLE_FONT, CARD_TITLE_LINE_HEIGHT)}px"
+              >{entry.manga.title}</h3>
+              <p
+                class="card-author"
+                style="min-height:{textHeight(entry.manga.author || entry.manga.artist || 'Unknown', CARD_TEXT_WIDTH, CARD_AUTHOR_FONT, CARD_AUTHOR_LINE_HEIGHT)}px"
+              >{entry.manga.author || entry.manga.artist || "Unknown"}</p>
               <div class="card-meta">
                 <span class="card-chapters">{entry.chapterCount} ch.</span>
                 {#if getLastUpdated(entry)}
@@ -374,7 +396,8 @@
 
   .card-cover {
     position: relative;
-    height: 180px;
+    width: 100%;
+    aspect-ratio: 3 / 4;
     background: var(--bg-elevated);
     display: flex;
     align-items: center;
@@ -385,7 +408,8 @@
   .card-cover-img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center;
   }
 
   .card-initial {
@@ -419,19 +443,19 @@
     font-weight: 600;
     color: var(--text-primary);
     margin: 0 0 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     letter-spacing: -0.01em;
+    line-height: 17px;
+    overflow: hidden;
+    word-break: break-word;
   }
 
   .card-author {
     font-size: 0.75rem;
     color: var(--text-muted);
     margin: 0 0 10px;
-    white-space: nowrap;
+    line-height: 15px;
     overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
   }
 
   .card-meta {
