@@ -52,6 +52,7 @@
 
   onMount(async () => {
     const _rpc = Electroview.defineRPC({
+      maxRequestTime: 120_000,
       handlers: {
         requests: {},
         messages: {},

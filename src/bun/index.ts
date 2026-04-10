@@ -26,6 +26,7 @@ type RpcSchema = {
 			addChapter: { params: { id: number; chapterNum: string; chapter: Chapter }; response: { ok: true } };
 			removeChapter: { params: { id: number; chapterNum: string }; response: { ok: true } };
 			uploadImages: { params: { id: number; chapterNum: string; group: string; filePaths: string[] }; response: { urls: string[] } };
+			uploadImagesFromFolder: { params: { id: number; chapterNum: string; group: string; folderPath: string }; response: { urls: string[] } };
 			pickFolder: { params: void; response: { path: string } | null };
 			pickImages: { params: void; response: { paths: string[] } | null };
 		};
@@ -175,6 +176,7 @@ const dbPath = await getSettingsDbPath();
 const db = initDb(dbPath);
 
 const rpc = BrowserView.defineRPC<RpcSchema>({
+	maxRequestTime: 120_000,
 	handlers: {
 		requests: {
 			// --- Settings ---
@@ -309,6 +311,39 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 				});
 				if (!paths || paths.length === 0) return null;
 				return { paths };
+			},
+
+			// --- Upload from folder ---
+			uploadImagesFromFolder: async (params) => {
+				const apiKey = getImgchestApiKey(db);
+				if (!apiKey) throw new Error("ImgChest API key not configured");
+
+				const row = db.query(`SELECT folderPath FROM manga_library WHERE id = ?`).get(params.id) as { folderPath: string } | undefined;
+				if (!row) throw new Error("Manga not found");
+
+				if (!existsSync(params.folderPath)) throw new Error("Images folder not found");
+
+				const imageExts = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+				const files = readdirSync(params.folderPath)
+					.filter((f) => imageExts.has(f.split(".").pop()?.toLowerCase() ?? ""))
+					.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+					.map((f) => join(params.folderPath, f));
+
+				if (files.length === 0) throw new Error("No image files found in folder");
+
+				const urls = await uploadToImgChest(apiKey, files);
+
+				const manga = readMangaJson(row.folderPath);
+				if (manga && manga.chapters[params.chapterNum]) {
+					const chapter = manga.chapters[params.chapterNum];
+					if (!chapter.groups[params.group]) {
+						chapter.groups[params.group] = [];
+					}
+					chapter.groups[params.group].push(...urls);
+					writeMangaJson(row.folderPath, manga);
+				}
+
+				return { urls };
 			},
 		},
 	},

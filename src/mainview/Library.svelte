@@ -33,9 +33,11 @@
     if (!rpc) return;
     loading = true;
     try {
-      library = await rpc.request.listManga();
+      const data = await rpc.request.listManga();
+      console.log("[loadLibrary] got", data?.length, "entries:", JSON.stringify(data));
+      library = data ?? [];
     } catch (e) {
-      console.error("Failed to load library:", e);
+      console.error("[loadLibrary] error:", e);
     }
     loading = false;
   }
@@ -49,11 +51,17 @@
     addingManga = true;
     try {
       const result = await rpc.request.pickFolder();
+      console.log("[addManga] pickFolder result:", JSON.stringify(result));
       if (!result) return;
-      await rpc.request.addMangaFolder({ folderPath: result.path });
+      const folderPath = typeof result === "string" ? result : result.path;
+      console.log("[addManga] folderPath:", folderPath);
+      if (!folderPath) { console.error("[addManga] no path in result"); return; }
+      const entry = await rpc.request.addMangaFolder({ folderPath });
+      console.log("[addManga] addMangaFolder result:", JSON.stringify(entry));
       await loadLibrary();
+      console.log("[addManga] library loaded, count:", library.length);
     } catch (e: any) {
-      console.error("Failed to add manga:", e);
+      console.error("[addManga] error:", e);
     } finally {
       addingManga = false;
     }
@@ -293,11 +301,7 @@
 
   .add-btn:hover { background: var(--accent-blue-hover); }
 
-  .add-btn:disabled {
-    opacity: 0.6;
-    cursor: default;
-    pointer-events: none;
-  }
+  .add-btn:disabled { opacity: 0.6; cursor: default; pointer-events: none; }
 
   :global(.btn-icon) { font-size: 0.95rem; }
 
