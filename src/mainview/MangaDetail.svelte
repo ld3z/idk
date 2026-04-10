@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { prepare, layout } from "@chenglou/pretext";
   import type { MangaEntry, MangaJson, Chapter } from "../shared/types.ts";
   import PhArrowLeft from "~icons/ph/arrow-left";
   import PhFloppyDisk from "~icons/ph/floppy-disk";
@@ -312,6 +313,41 @@
   let fetchPicked = $state<BakaResult | null>(null);
   let fetchFields = $state<Record<string, boolean>>({ title: true, description: true, author: true, artist: true, cover: true });
 
+  const DESC_FONT = '400 11.2px "DM Sans", ui-sans-serif, system-ui, sans-serif';
+  const DESC_LINE_HEIGHT = 16;
+  const PREVIEW_FONT = '400 12px "DM Sans", ui-sans-serif, system-ui, sans-serif';
+  const PREVIEW_LINE_HEIGHT = 17;
+  const TEXTAREA_FONT = '400 13.6px "DM Sans", ui-sans-serif, system-ui, sans-serif';
+  const TEXTAREA_LINE_HEIGHT = 20;
+  const MONO_FONT = '400 11.2px "IBM Plex Mono", ui-monospace, monospace';
+  const MONO_LINE_HEIGHT = 16;
+  const CHAPTER_TITLE_FONT = '400 12.8px "DM Sans", ui-sans-serif, system-ui, sans-serif';
+  const CHAPTER_TITLE_LINE_HEIGHT = 18;
+  /** Padding (4+4) + border (1+1) on `.folder-path`; pretext height is text-only */
+  const FOLDER_PATH_Y_CHROME = 8 + 2 + 2;
+
+  function textHeight(text: string, widthPx: number, font: string, lh: number, minLines = 1): number {
+    if (!text) return lh * minLines;
+    const p = prepare(text, font);
+    const { height } = layout(p, widthPx, lh);
+    return Math.max(height, lh * minLines);
+  }
+
+  function textLines(text: string, widthPx: number, font: string, lh: number): number {
+    if (!text) return 1;
+    const p = prepare(text, font);
+    const { lineCount } = layout(p, widthPx, lh);
+    return Math.max(lineCount, 1);
+  }
+
+  $effect(() => {
+    if (description) {
+      const rows = textLines(description, 460, TEXTAREA_FONT, TEXTAREA_LINE_HEIGHT);
+      const el = document.querySelector('.field-textarea') as HTMLTextAreaElement | null;
+      if (el) el.rows = Math.max(rows, 3);
+    }
+  });
+
   function openFetchModal() {
     showFetchModal = true;
     fetchPhase = "search";
@@ -365,7 +401,10 @@
       Library
     </button>
     <div class="detail-topbar-right">
-      <span class="folder-path">
+      <span
+        class="folder-path"
+        style="min-height:{textHeight(entry.folderPath, 308, MONO_FONT, MONO_LINE_HEIGHT) + FOLDER_PATH_Y_CHROME}px"
+      >
         <PhFolderOpen class="folder-icon" />
         {entry.folderPath}
       </span>
@@ -510,7 +549,10 @@
                 </span>
                 <span class="chapter-num">Ch. {chNum}{#if ch.volume} <span class="chapter-vol-inline">v{ch.volume}</span>{/if}</span>
                 {#if ch.title && ch.title !== chNum}
-                  <span class="chapter-title">{ch.title}</span>
+                  <span
+                    class="chapter-title"
+                    style="height:{textHeight(ch.title, 350, CHAPTER_TITLE_FONT, CHAPTER_TITLE_LINE_HEIGHT)}px"
+                  >{ch.title}</span>
                 {/if}
                 <span class="chapter-info">
                   {#each Object.keys(ch.groups) as g}
@@ -714,7 +756,10 @@
               <div class="fetch-result-info">
                 <span class="fetch-result-title">{r.title}</span>
                 <span class="fetch-result-author">{[r.author, r.artist].filter(Boolean).join(" / ") || "Unknown"}</span>
-                <span class="fetch-result-desc">{r.description?.slice(0, 120) || "No description"}{r.description && r.description.length > 120 ? "..." : ""}</span>
+                <span
+                  class="fetch-result-desc"
+                  style="height:{textHeight(r.description || '', 460, DESC_FONT, DESC_LINE_HEIGHT)}px"
+                >{r.description || "No description"}</span>
               </div>
             </button>
           {/each}
@@ -738,9 +783,23 @@
                 <input type="checkbox" bind:checked={fetchFields[field.key]} />
                 <div class="fetch-preview-field">
                   <span class="fetch-preview-label">{field.label}</span>
-                  <span class="fetch-preview-current" class:empty={!field.current}>{field.current || "(empty)"}</span>
-                  <span class="fetch-preview-arrow">&#8594;</span>
-                  <span class="fetch-preview-new" class:empty={!field.fetched}>{field.fetched || "(empty)"}</span>
+                  {#if field.key === "description"}
+                    <span
+                      class="fetch-preview-current fetch-preview-wrap"
+                      class:empty={!field.current}
+                      style="height:{textHeight(field.current || '', 440, PREVIEW_FONT, PREVIEW_LINE_HEIGHT)}px"
+                    >{field.current || "(empty)"}</span>
+                    <span class="fetch-preview-arrow">&#8594;</span>
+                    <span
+                      class="fetch-preview-new fetch-preview-wrap"
+                      class:empty={!field.fetched}
+                      style="height:{textHeight(field.fetched || '', 440, PREVIEW_FONT, PREVIEW_LINE_HEIGHT)}px"
+                    >{field.fetched || "(empty)"}</span>
+                  {:else}
+                    <span class="fetch-preview-current" class:empty={!field.current}>{field.current || "(empty)"}</span>
+                    <span class="fetch-preview-arrow">&#8594;</span>
+                    <span class="fetch-preview-new" class:empty={!field.fetched}>{field.fetched || "(empty)"}</span>
+                  {/if}
                 </div>
               </label>
             {/each}
@@ -802,19 +861,18 @@
 
   .folder-path {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 6px;
     font-family: var(--mono);
     font-size: 0.7rem;
+    line-height: 16px;
     color: var(--text-muted);
     padding: 4px 10px;
     background: var(--bg-elevated);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-subtle);
     max-width: 350px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    word-break: break-all;
   }
 
   :global(.folder-icon) { font-size: 0.85rem; flex-shrink: 0; }
@@ -1177,9 +1235,9 @@
     font-size: 0.8rem;
     color: var(--text-secondary);
     flex: 1;
-    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
+    line-height: 18px;
     min-width: 0;
   }
 
@@ -1814,9 +1872,8 @@
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
+    line-height: 1.3;
   }
 
   .fetch-result-author {
@@ -1827,11 +1884,10 @@
   .fetch-result-desc {
     font-size: 0.7rem;
     color: var(--text-secondary);
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    line-height: 16px;
+    display: block;
     overflow: hidden;
+    word-break: break-word;
   }
 
   /* Preview */
@@ -1882,9 +1938,8 @@
   .fetch-preview-current {
     font-size: 0.75rem;
     color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
+    line-height: 17px;
   }
 
   .fetch-preview-current.empty { color: var(--text-muted); font-style: italic; }
@@ -1899,12 +1954,15 @@
     font-size: 0.75rem;
     color: var(--accent-green);
     font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
+    line-height: 17px;
   }
 
   .fetch-preview-new.empty { color: var(--text-muted); font-style: italic; }
+
+  .fetch-preview-wrap {
+    overflow: hidden;
+  }
 
   .fetch-preview-actions {
     display: flex;
