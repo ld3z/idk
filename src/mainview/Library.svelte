@@ -201,9 +201,12 @@
             class="card-remove-btn"
             type="button"
             title="Remove from library"
+            aria-label="Remove {entry.manga.title} from library"
             onclick={(e) => { e.stopPropagation(); confirmRemoveId = entry.id; }}
           >
-            <PhTrash />
+            <span class="card-remove-btn-inner" aria-hidden="true">
+              <PhTrash class="card-trash-icon" />
+            </span>
           </button>
         </div>
       {/each}
@@ -226,7 +229,7 @@
       <div class="modal-actions">
         <button class="modal-btn-cancel" type="button" onclick={() => (confirmRemoveId = null)}>Cancel</button>
         <button class="modal-btn-danger" type="button" onclick={() => confirmRemoveId !== null && removeManga(confirmRemoveId)}>
-          <PhTrash />
+          <PhTrash class="modal-trash-icon" />
           Remove
         </button>
       </div>
@@ -482,30 +485,70 @@
 
   .card-remove-btn {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-sm);
+    top: 10px;
+    right: 10px;
+    z-index: 4;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 50%;
     background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-muted);
+    border: 1px solid var(--border-default);
+    color: var(--text-secondary);
     cursor: pointer;
     display: grid;
     place-items: center;
     opacity: 0;
-    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+    box-shadow: var(--shadow-sm);
+    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
   }
 
-  .manga-card:hover .card-remove-btn { opacity: 1; }
+  .manga-card:hover .card-remove-btn,
+  .manga-card:focus-within .card-remove-btn {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    .card-remove-btn {
+      opacity: 0.92;
+    }
+  }
 
   .card-remove-btn:hover {
-    color: var(--accent-rose);
-    background: var(--accent-rose-light);
+    color: #fff;
+    background: var(--accent-rose);
     border-color: var(--accent-rose);
+    transform: scale(1.04);
+    box-shadow: var(--shadow-md);
   }
 
-  .card-remove-btn :global(svg) { font-size: 0.85rem; }
+  .card-remove-btn:hover :global(svg) {
+    color: #fff;
+    opacity: 1;
+  }
+
+  .card-remove-btn:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+  }
+
+  .card-remove-btn-inner {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .card-remove-btn-inner :global(svg),
+  :global(.card-trash-icon) {
+    display: block;
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    color: inherit;
+    opacity: 1;
+  }
 
   /* Modals */
   .modal-overlay {
@@ -568,9 +611,10 @@
   }
 
   .modal-btn-danger {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: 8px;
     padding: 9px 20px;
     background: var(--accent-rose);
     border: none;
@@ -579,13 +623,27 @@
     font-family: inherit;
     font-size: 0.85rem;
     font-weight: 600;
+    line-height: 1;
     cursor: pointer;
     transition: background 0.15s ease;
   }
 
   .modal-btn-danger:hover { background: #be123c; }
 
-  .modal-btn-danger :global(svg) { font-size: 0.95rem; }
+  .modal-btn-danger:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+  }
+
+  .modal-btn-danger :global(svg),
+  :global(.modal-trash-icon) {
+    display: block;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: #fff;
+    opacity: 1;
+  }
 
   .modal-icon-wrap {
     width: 52px;
