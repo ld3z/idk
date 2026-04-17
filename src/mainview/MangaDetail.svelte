@@ -8,9 +8,8 @@
   import PhCheck from "~icons/ph/check";
   import PhPlus from "~icons/ph/plus";
   import PhTrash from "~icons/ph/trash";
-  import PhCaretDown from "~icons/ph/caret-down";
-  import PhCaretUp from "~icons/ph/caret-up";
   import PhCaretRight from "~icons/ph/caret-right";
+  import PhArrowSquareOut from "~icons/ph/arrow-square-out";
   import PhDotsSixVertical from "~icons/ph/dots-six-vertical";
   import PhUploadSimple from "~icons/ph/upload-simple";
   import PhImage from "~icons/ph/image";
@@ -26,12 +25,29 @@
 
   let { rpc, entry, onBack }: Props = $props();
 
+  function cloneChapter(chapter: Chapter): Chapter {
+    return {
+      title: chapter.title,
+      volume: chapter.volume,
+      last_updated: chapter.last_updated,
+      groups: Object.fromEntries(
+        Object.entries(chapter.groups).map(([groupName, urls]) => [groupName, [...urls]])
+      ),
+    };
+  }
+
+  function cloneChapters(source: Record<string, Chapter>): Record<string, Chapter> {
+    return Object.fromEntries(
+      Object.entries(source).map(([chapterNum, chapter]) => [chapterNum, cloneChapter(chapter)])
+    );
+  }
+
   let title = $state(entry.manga.title);
   let description = $state(entry.manga.description);
   let author = $state(entry.manga.author);
   let artist = $state(entry.manga.artist);
   let cover = $state(entry.manga.cover);
-  let chapters = $state<Record<string, Chapter>>({ ...entry.manga.chapters });
+  let chapters = $state<Record<string, Chapter>>(cloneChapters(entry.manga.chapters));
 
   let saveStatus = $state<"idle" | "saving" | "saved">("idle");
   let hasChanges = $state(false);
@@ -54,17 +70,6 @@
 
   let dragState = $state<{ chapterNum: string; groupName: string; fromIndex: number } | null>(null);
   let dragOverIndex = $state<number | null>(null);
-
-  function moveImage(chNum: string, groupName: string, index: number, direction: -1 | 1) {
-    const ch = chapters[chNum];
-    if (!ch) return;
-    const urls = ch.groups[groupName];
-    if (!urls) return;
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= urls.length) return;
-    [urls[index], urls[newIndex]] = [urls[newIndex], urls[index]];
-    chapters = { ...chapters };
-  }
 
   function onDragStart(chNum: string, groupName: string, index: number) {
     dragState = { chapterNum: chNum, groupName, fromIndex: index };
@@ -203,10 +208,10 @@
 
   async function saveMetadata() {
     saveStatus = "saving";
-    const manga: MangaJson = { title, description, author, artist, cover, chapters };
+    const manga: MangaJson = { title, description, author, artist, cover, chapters: cloneChapters(chapters) };
     try {
       await rpc.request.updateManga({ id: entry.id, manga });
-      entry.manga = manga;
+      entry.manga = { ...manga, chapters: cloneChapters(manga.chapters) };
       hasChanges = false;
       saveStatus = "saved";
       setTimeout(() => { saveStatus = "idle"; }, 1800);
@@ -711,6 +716,7 @@
               <div class="group-header">
                 <span class="group-name">{groupName}</span>
                 <span class="group-count">{urls.length} pages</span>
+                <span class="group-reorder-hint">Drag pages to reorder</span>
                 <button
                   class="upload-btn"
                   type="button"
@@ -747,28 +753,8 @@
                       title="Open in browser"
                       onclick={() => rpc.request.openExternal({ url })}
                     >
-                      <PhCaretRight />
+                      <PhArrowSquareOut />
                     </button>
-                    <div class="page-card-actions">
-                      <button
-                        class="page-move-btn"
-                        type="button"
-                        title="Move up"
-                        disabled={i === 0}
-                        onclick={() => moveImage(selectedChapter, groupName, i, -1)}
-                      >
-                        <PhCaretUp />
-                      </button>
-                      <button
-                        class="page-move-btn"
-                        type="button"
-                        title="Move down"
-                        disabled={i === urls.length - 1}
-                        onclick={() => moveImage(selectedChapter, groupName, i, 1)}
-                      >
-                        <PhCaretDown />
-                      </button>
-                    </div>
                   </div>
                 {/each}
               </div>
@@ -1626,6 +1612,20 @@
     color: var(--text-primary);
   }
 
+  .group-reorder-hint {
+    margin-left: auto;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-blue-light) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-blue) 28%, var(--border-subtle));
+    color: var(--accent-blue);
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
   .group-count {
     font-family: var(--mono);
     font-size: 0.65rem;
@@ -1675,10 +1675,12 @@
     background: var(--bg-base);
     overflow: hidden;
     cursor: grab;
+    transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
   }
 
   .page-card:hover {
     border-color: var(--border-default);
+    transform: translateY(-1px);
   }
 
   .page-card.dragging {
@@ -1699,42 +1701,56 @@
     position: absolute;
     top: 4px;
     left: 4px;
-    width: 22px;
-    height: 22px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.45);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.58);
     color: #fff;
-    display: grid;
-    place-items: center;
     z-index: 2;
     cursor: grab;
-    opacity: 0;
   }
 
-  .page-grip :global(svg) { font-size: 0.8rem; }
+  .page-grip::after {
+    content: "Drag";
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
 
-  .page-card:hover .page-grip { opacity: 1; }
+  .page-grip :global(svg) { font-size: 0.78rem; }
 
   .page-open-btn {
     position: absolute;
     bottom: 4px;
     left: 4px;
-    width: 22px;
-    height: 22px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.45);
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.58);
     border: none;
     color: #fff;
     cursor: pointer;
-    display: grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     z-index: 2;
-    opacity: 0;
   }
 
-  .page-open-btn :global(svg) { font-size: 0.6rem; }
+  .page-open-btn::after {
+    content: "Open";
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
 
-  .page-card:hover .page-open-btn { opacity: 1; }
+  .page-open-btn :global(svg) { font-size: 0.72rem; }
 
   .page-open-btn:hover {
     background: var(--accent-blue);
@@ -1755,52 +1771,19 @@
 
   .page-num {
     position: absolute;
-    bottom: 4px;
-    right: 4px;
+    bottom: 6px;
+    right: 6px;
     font-family: var(--mono);
-    font-size: 0.6rem;
-    font-weight: 600;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
     color: #fff;
-    background: rgba(0, 0, 0, 0.55);
-    padding: 1px 6px;
-    border-radius: 4px;
+    background: rgba(7, 10, 18, 0.82);
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
     z-index: 2;
-  }
-
-  .page-card-actions {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    z-index: 2;
-    opacity: 0;
-  }
-
-  .page-card:hover .page-card-actions { opacity: 1; }
-
-  .page-move-btn {
-    width: 22px;
-    height: 22px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.45);
-    border: none;
-    color: #fff;
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-  }
-
-  .page-move-btn :global(svg) { font-size: 0.65rem; }
-
-  .page-move-btn:hover:not(:disabled) {
-    background: var(--accent-blue);
-  }
-
-  .page-move-btn:disabled {
-    opacity: 0.3;
-    cursor: default;
   }
 
   /* Add group row */
