@@ -102,6 +102,40 @@
   let editVolume = $state("");
   let editLastUpdated = $state("");
 
+  function padDatePart(n: number): string {
+    return String(n).padStart(2, "0");
+  }
+
+  function formatTimestampForInput(ts: string): string {
+    if (!ts) return "";
+    const num = Number(ts);
+    if (!Number.isFinite(num)) return "";
+    const d = new Date(num * 1000);
+    if (isNaN(d.getTime())) return "";
+    return [
+      d.getFullYear(),
+      padDatePart(d.getMonth() + 1),
+      padDatePart(d.getDate()),
+    ].join("-") + `T${padDatePart(d.getHours())}:${padDatePart(d.getMinutes())}`;
+  }
+
+  function parseLastUpdatedInput(value: string): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    if (/^\d+$/.test(trimmed)) {
+      const raw = Number(trimmed);
+      if (!Number.isFinite(raw)) return null;
+      return String(trimmed.length > 10 ? Math.floor(raw / 1000) : raw);
+    }
+
+    const parsed = new Date(trimmed);
+    if (isNaN(parsed.getTime())) return null;
+    return String(Math.floor(parsed.getTime() / 1000));
+  }
+
+  let editLastUpdatedUnixPreview = $derived.by(() => parseLastUpdatedInput(editLastUpdated));
+
   function startEditChapter(chNum: string) {
     const ch = chapters[chNum];
     if (!ch) return;
@@ -109,7 +143,7 @@
     editChapterNum = chNum;
     editTitle = ch.title;
     editVolume = ch.volume;
-    editLastUpdated = ch.last_updated;
+    editLastUpdated = formatTimestampForInput(ch.last_updated);
   }
 
   function cancelEditChapter() {
@@ -121,9 +155,10 @@
     const oldNum = editingChapter;
     const newNum = editChapterNum.trim() || oldNum;
     const ch = chapters[oldNum];
+    const parsedLastUpdated = parseLastUpdatedInput(editLastUpdated);
     ch.title = editTitle;
     ch.volume = editVolume;
-    ch.last_updated = editLastUpdated || String(Math.floor(Date.now() / 1000));
+    ch.last_updated = parsedLastUpdated ?? String(Math.floor(Date.now() / 1000));
 
     if (newNum !== oldNum) {
       delete chapters[oldNum];
@@ -655,7 +690,13 @@
                 </div>
                 <div class="field field-sm">
                   <label class="field-label">Last Updated</label>
-                  <input class="field-input" type="text" bind:value={editLastUpdated} placeholder="Unix timestamp" />
+                  <input class="field-input field-input-datetime" type="datetime-local" bind:value={editLastUpdated} />
+                  <div class="field-hint-row">
+                    <span class="field-hint">Local time, easier edit</span>
+                    <span class="field-hint field-hint-code">
+                      unix: {editLastUpdatedUnixPreview ?? "auto-now"}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div class="chapter-edit-actions">
@@ -767,7 +808,7 @@
 
   {#if showAddChapter}
     <div class="modal-overlay" role="dialog" aria-modal="true" onclick={() => (showAddChapter = false)}>
-      <div class="modal" onclick={(e) => e.stopPropagation()}>
+      <div class="modal modal--wide" onclick={(e) => e.stopPropagation()}>
         <h2 class="modal-title">Add Chapter</h2>
         <div class="add-chapter-form">
           <div class="form-row">
@@ -1525,9 +1566,35 @@
 
   .chapter-edit-row {
     display: grid;
-    grid-template-columns: 80px 1fr 80px 1fr;
+    grid-template-columns: minmax(80px, 0.75fr) minmax(140px, 1.2fr) minmax(80px, 0.7fr) minmax(220px, 1.4fr);
     gap: 12px;
     margin-bottom: 12px;
+  }
+
+  .field-input-datetime {
+    min-width: 0;
+  }
+
+  .field-hint-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+
+  .field-hint {
+    font-size: 0.66rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  .field-hint-code {
+    font-family: var(--mono);
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-base) 72%, transparent);
+    border: 1px solid var(--border-subtle);
   }
 
   .chapter-edit-actions {
@@ -2007,6 +2074,11 @@
     text-align: center;
   }
 
+  .modal--wide {
+    max-width: 720px;
+    text-align: left;
+  }
+
   .modal-title {
     font-size: 1.1rem;
     font-weight: 700;
@@ -2071,6 +2143,11 @@
   /* Add chapter form (inside modal) */
   .add-chapter-form {
     text-align: left;
+  }
+
+  .add-chapter-form .form-row {
+    grid-template-columns: minmax(110px, 0.9fr) minmax(180px, 1.4fr) minmax(110px, 0.9fr) minmax(220px, 1.6fr);
+    gap: 14px;
   }
 
   /* ── Fetch Modal ── */
@@ -2588,7 +2665,7 @@
     }
 
     .chapter-edit-row {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
     }
   }
 </style>
