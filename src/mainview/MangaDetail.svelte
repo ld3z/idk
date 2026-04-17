@@ -9,7 +9,9 @@
   import PhPlus from "~icons/ph/plus";
   import PhTrash from "~icons/ph/trash";
   import PhCaretDown from "~icons/ph/caret-down";
+  import PhCaretUp from "~icons/ph/caret-up";
   import PhCaretRight from "~icons/ph/caret-right";
+  import PhDotsSixVertical from "~icons/ph/dots-six-vertical";
   import PhUploadSimple from "~icons/ph/upload-simple";
   import PhImage from "~icons/ph/image";
   import PhFolderOpen from "~icons/ph/folder-open";
@@ -49,6 +51,50 @@
   let newGroupName = $state("");
 
   let confirmRemoveChapter = $state<string | null>(null);
+
+  let dragState = $state<{ chapterNum: string; groupName: string; fromIndex: number } | null>(null);
+  let dragOverIndex = $state<number | null>(null);
+
+  function moveImage(chNum: string, groupName: string, index: number, direction: -1 | 1) {
+    const ch = chapters[chNum];
+    if (!ch) return;
+    const urls = ch.groups[groupName];
+    if (!urls) return;
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= urls.length) return;
+    [urls[index], urls[newIndex]] = [urls[newIndex], urls[index]];
+    chapters = { ...chapters };
+  }
+
+  function onDragStart(chNum: string, groupName: string, index: number) {
+    dragState = { chapterNum: chNum, groupName, fromIndex: index };
+    dragOverIndex = null;
+  }
+
+  function onDragOver(index: number) {
+    if (!dragState) return;
+    dragOverIndex = index;
+  }
+
+  function onDragEnd() {
+    dragState = null;
+    dragOverIndex = null;
+  }
+
+  function onDrop(chNum: string, groupName: string, toIndex: number) {
+    if (!dragState || dragState.chapterNum !== chNum || dragState.groupName !== groupName) return;
+    const fromIndex = dragState.fromIndex;
+    if (fromIndex === toIndex) { dragState = null; dragOverIndex = null; return; }
+    const ch = chapters[chNum];
+    if (!ch) return;
+    const urls = ch.groups[groupName];
+    if (!urls) return;
+    const [moved] = urls.splice(fromIndex, 1);
+    urls.splice(toIndex, 0, moved);
+    chapters = { ...chapters };
+    dragState = null;
+    dragOverIndex = null;
+  }
 
   let editingChapter = $state<string | null>(null);
   let editChapterNum = $state("");
@@ -655,7 +701,19 @@
                       </div>
                       <div class="url-list">
                         {#each urls as url, i}
-                          <div class="url-item">
+                          <div
+                            class="url-item"
+                            class:dragging={dragState?.chapterNum === chNum && dragState?.groupName === groupName && dragState?.fromIndex === i}
+                            class:drag-over-top={dragOverIndex === i && dragState?.chapterNum === chNum && dragState?.groupName === groupName && dragState?.fromIndex !== undefined && dragState.fromIndex < i}
+                            class:drag-over-bottom={dragOverIndex === i && dragState?.chapterNum === chNum && dragState?.groupName === groupName && dragState?.fromIndex !== undefined && dragState.fromIndex > i}
+                            draggable="true"
+                            ondragstart={(e) => { e.dataTransfer!.effectAllowed = "move"; onDragStart(chNum, groupName, i); }}
+                            ondragover={(e) => { e.preventDefault(); e.dataTransfer!.dropEffect = "move"; onDragOver(i); }}
+                            ondragleave={() => { if (dragOverIndex === i) dragOverIndex = null; }}
+                            ondragend={onDragEnd}
+                            ondrop={(e) => { e.preventDefault(); onDrop(chNum, groupName, i); }}
+                          >
+                            <span class="url-grip" aria-hidden="true" title="Drag to reorder"><PhDotsSixVertical /></span>
                             <span class="url-index">{i + 1}</span>
                             <div class="url-cell">
                               <a
@@ -676,6 +734,14 @@
                                 />
                                 <figcaption class="url-thumb-cap">Page {i + 1}</figcaption>
                               </figure>
+                            </div>
+                            <div class="url-move-btns">
+                              <button class="url-move-btn" type="button" title="Move up" disabled={i === 0} onclick={() => moveImage(chNum, groupName, i, -1)}>
+                                <PhCaretUp />
+                              </button>
+                              <button class="url-move-btn" type="button" title="Move down" disabled={i === urls.length - 1} onclick={() => moveImage(chNum, groupName, i, 1)}>
+                                <PhCaretDown />
+                              </button>
                             </div>
                           </div>
                         {/each}
@@ -1574,7 +1640,83 @@
     align-items: flex-start;
     gap: 10px;
     padding: 6px 0;
+    border-radius: var(--radius-sm);
+    transition: background 0.12s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+    position: relative;
   }
+
+  .url-item:hover {
+    background: color-mix(in srgb, var(--bg-elevated) 60%, transparent);
+  }
+
+  .url-item.dragging {
+    opacity: 0.35;
+    background: color-mix(in srgb, var(--accent-blue-light) 50%, transparent);
+  }
+
+  .url-item.drag-over-top {
+    box-shadow: inset 0 2px 0 var(--accent-blue);
+  }
+
+  .url-item.drag-over-bottom {
+    box-shadow: inset 0 -2px 0 var(--accent-blue);
+  }
+
+  .url-grip {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    flex-shrink: 0;
+    cursor: grab;
+    color: var(--text-muted);
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease;
+    padding-top: 2px;
+    font-size: 0.9rem;
+  }
+
+  .url-grip:active { cursor: grabbing; }
+
+  .url-item:hover .url-grip { opacity: 0.6; }
+  .url-grip:hover { opacity: 1 !important; color: var(--text-secondary); }
+
+  .url-move-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    padding-top: 1px;
+  }
+
+  .url-item:hover .url-move-btns { opacity: 1; }
+
+  .url-move-btn {
+    width: 22px;
+    height: 18px;
+    border-radius: 3px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: color 0.12s ease, background 0.12s ease;
+  }
+
+  .url-move-btn:hover:not(:disabled) {
+    color: var(--accent-blue);
+    background: var(--accent-blue-light);
+  }
+
+  .url-move-btn:disabled {
+    opacity: 0.25;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .url-move-btn :global(svg) { font-size: 0.75rem; }
 
   .url-cell {
     flex: 1;
@@ -1637,7 +1779,9 @@
   }
 
   .url-item:hover .url-thumb,
-  .url-item:focus-within .url-thumb {
+  .url-item:focus-within .url-thumb,
+  .url-item.drag-over-top .url-thumb,
+  .url-item.drag-over-bottom .url-thumb {
     display: block;
   }
 
