@@ -36,7 +36,7 @@
   let saveStatus = $state<"idle" | "saving" | "saved">("idle");
   let hasChanges = $state(false);
 
-  let expandedChapter = $state<string | null>(null);
+  let selectedChapter = $state<string | null>(null);
   let showAddChapter = $state(false);
   let newChapterNum = $state("");
   let newChapterTitle = $state("");
@@ -132,7 +132,7 @@
 
     chapters = { ...chapters };
     editingChapter = null;
-    if (expandedChapter === oldNum) expandedChapter = newNum;
+    if (selectedChapter === oldNum) selectedChapter = newNum;
   }
 
   let elapsedStr = $state("");
@@ -247,7 +247,7 @@
       delete chapters[chapterNum];
       chapters = { ...chapters };
       confirmRemoveChapter = null;
-      if (expandedChapter === chapterNum) expandedChapter = null;
+      if (selectedChapter === chapterNum) selectedChapter = null;
     } catch (e) {
       console.error("Failed to remove chapter:", e);
     }
@@ -261,9 +261,9 @@
     } else if (groupKeys.length === 0) {
       newGroupUpload = { chapterNum };
       newGroupName = "";
-      expandedChapter = chapterNum;
+      selectedChapter = chapterNum;
     } else {
-      expandedChapter = chapterNum;
+      selectedChapter = chapterNum;
     }
   }
 
@@ -369,9 +369,6 @@
   const TEXTAREA_LINE_HEIGHT = 20;
   const MONO_FONT = '400 11.2px "IBM Plex Mono", ui-monospace, monospace';
   const MONO_LINE_HEIGHT = 16;
-  const CHAPTER_TITLE_FONT = '400 12.8px "DM Sans", ui-sans-serif, system-ui, sans-serif';
-  const CHAPTER_TITLE_LINE_HEIGHT = 18;
-  /** Padding (4+4) + border (1+1) on `.folder-path`; pretext height is text-only */
   const FOLDER_PATH_Y_CHROME = 8 + 2 + 2;
 
   function textHeight(text: string, widthPx: number, font: string, lh: number, minLines = 1): number {
@@ -441,7 +438,7 @@
     showFetchModal = false;
   }
 
-  let modalScrollLocked = $derived(showFetchModal || confirmRemoveChapter !== null);
+  let modalScrollLocked = $derived(showFetchModal || confirmRemoveChapter !== null || showAddChapter);
 
   $effect(() => {
     if (!modalScrollLocked) return;
@@ -491,71 +488,25 @@
     </div>
   </div>
 
-  <div class="detail-content">
-    <div class="metadata-section">
-      <div class="meta-cover">
-        {#if cover}
-          <img src={cover} alt={title} class="cover-img" />
-        {:else}
-          <div class="cover-placeholder">
-            <PhImage class="cover-placeholder-icon" />
-          </div>
-        {/if}
-      </div>
-
-      <div class="meta-fields">
-        <div class="field">
-          <label class="field-label">Title</label>
-          <input class="field-input" type="text" bind:value={title} placeholder="Manga title" />
-        </div>
-        <div class="fields-row">
-          <div class="field">
-            <label class="field-label">Author</label>
-            <input class="field-input" type="text" bind:value={author} placeholder="Author name" />
-          </div>
-          <div class="field">
-            <label class="field-label">Artist</label>
-            <input class="field-input" type="text" bind:value={artist} placeholder="Artist name" />
-          </div>
-        </div>
-        <div class="field">
-          <label class="field-label">Cover URL</label>
-          <input class="field-input" type="text" bind:value={cover} placeholder="https://..." />
-        </div>
-        <div class="field">
-          <label class="field-label">Description</label>
-          <textarea class="field-textarea" bind:value={description} placeholder="Synopsis..." rows="3"></textarea>
-        </div>
-        <button class="fetch-meta-btn" type="button" onclick={openFetchModal}>
-          <PhCloudArrowDown />
-          Fetch from MangaBaka
-        </button>
-      </div>
-    </div>
-
-    <div class="chapters-section">
-      <div class="chapters-header">
-        <h2 class="section-title">Chapters</h2>
+  <div class="detail-body">
+    <!-- Left sidebar: chapters -->
+    <aside class="chapter-sidebar">
+      <div class="sidebar-header">
+        <h2 class="sidebar-title">Chapters</h2>
         <span class="chapter-count">{filteredChapterKeys.length}{groupFilter ? ` / ${Object.keys(chapters).length}` : ""}</span>
-        <div class="chapters-header-actions">
-          <button class="add-chapter-btn" type="button" onclick={() => (showAddChapter = true)}>
-            <PhPlus />
-            Add Chapter
-          </button>
-        </div>
       </div>
 
       {#if allGroups.length > 1}
-        <div class="group-filter-bar">
+        <div class="sidebar-groups">
           <button
-            class="group-filter-chip"
+            class="group-chip"
             class:active={groupFilter === null}
             type="button"
             onclick={() => (groupFilter = null)}
           >All</button>
           {#each allGroups as g}
             <button
-              class="group-filter-chip"
+              class="group-chip"
               class:active={groupFilter === g}
               type="button"
               onclick={() => (groupFilter = groupFilter === g ? null : g)}
@@ -564,7 +515,260 @@
         </div>
       {/if}
 
-      {#if showAddChapter}
+      <div class="sidebar-list">
+        {#if filteredChapterKeys.length === 0}
+          <div class="sidebar-empty">
+            <p>No chapters yet</p>
+          </div>
+        {:else}
+          {#each filteredChapterKeys as chNum}
+            {@const ch = chapters[chNum]}
+            <button
+              class="chapter-pill"
+              class:selected={selectedChapter === chNum}
+              type="button"
+              onclick={() => (selectedChapter = selectedChapter === chNum ? null : chNum)}
+            >
+              <span class="pill-num">{chNum}</span>
+              {#if ch.title && ch.title !== chNum}
+                <span class="pill-title">{ch.title}</span>
+              {/if}
+              {#if ch.volume}
+                <span class="pill-vol">v{ch.volume}</span>
+              {/if}
+              <span class="pill-imgs">{groupImageCount(ch)}</span>
+            </button>
+          {/each}
+        {/if}
+      </div>
+
+      <!-- Big plus button -->
+      <button class="sidebar-plus" type="button" onclick={() => (showAddChapter = true)}>
+        <PhPlus />
+      </button>
+    </aside>
+
+    <!-- Right panel -->
+    <div class="detail-main">
+      <!-- Metadata section -->
+      <div class="metadata-section">
+        <div class="meta-cover">
+          {#if cover}
+            <img src={cover} alt={title} class="cover-img" />
+          {:else}
+            <div class="cover-placeholder">
+              <PhImage class="cover-placeholder-icon" />
+            </div>
+          {/if}
+        </div>
+
+        <div class="meta-fields">
+          <div class="field">
+            <label class="field-label">Title</label>
+            <input class="field-input" type="text" bind:value={title} placeholder="Manga title" />
+          </div>
+          <div class="fields-row">
+            <div class="field">
+              <label class="field-label">Author</label>
+              <input class="field-input" type="text" bind:value={author} placeholder="Author name" />
+            </div>
+            <div class="field">
+              <label class="field-label">Artist</label>
+              <input class="field-input" type="text" bind:value={artist} placeholder="Artist name" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Cover URL</label>
+            <input class="field-input" type="text" bind:value={cover} placeholder="https://..." />
+          </div>
+          <div class="field">
+            <label class="field-label">Description</label>
+            <textarea class="field-textarea" bind:value={description} placeholder="Synopsis..." rows="3"></textarea>
+          </div>
+          <button class="fetch-meta-btn" type="button" onclick={openFetchModal}>
+            <PhCloudArrowDown />
+            Fetch from MangaBaka
+          </button>
+        </div>
+      </div>
+
+      <!-- Chapter detail (when selected) -->
+      {#if selectedChapter && chapters[selectedChapter]}
+        {@const ch = chapters[selectedChapter]}
+        <div class="chapter-panel">
+          <div class="chapter-panel-header">
+            <div class="chapter-panel-title-row">
+              <h3 class="chapter-panel-title">Ch. {selectedChapter}</h3>
+              {#if ch.title && ch.title !== selectedChapter}
+                <span class="chapter-panel-subtitle">{ch.title}</span>
+              {/if}
+              {#if ch.volume}
+                <span class="chapter-panel-vol">Vol. {ch.volume}</span>
+              {/if}
+              {#if ch.last_updated}
+                <span class="chapter-panel-date">{formatTimestamp(ch.last_updated)}</span>
+              {/if}
+            </div>
+            <div class="chapter-panel-actions">
+              <button
+                class="panel-action-btn"
+                type="button"
+                title="Edit chapter"
+                onclick={() => { startEditChapter(selectedChapter); }}
+              >
+                <PhPencilSimple />
+              </button>
+              <button
+                class="panel-action-btn"
+                type="button"
+                title="Upload images"
+                onclick={() => startChapterUpload(selectedChapter)}
+                disabled={uploadingChapter === selectedChapter}
+              >
+                <PhUploadSimple />
+              </button>
+              <button
+                class="panel-action-btn panel-action-btn-danger"
+                type="button"
+                title="Remove chapter"
+                onclick={() => (confirmRemoveChapter = selectedChapter)}
+              >
+                <PhTrash />
+              </button>
+            </div>
+          </div>
+
+          {#if editingChapter === selectedChapter}
+            <div class="chapter-edit-form">
+              <div class="chapter-edit-row">
+                <div class="field field-sm">
+                  <label class="field-label">Chapter #</label>
+                  <input class="field-input" type="text" bind:value={editChapterNum} />
+                </div>
+                <div class="field field-sm">
+                  <label class="field-label">Title</label>
+                  <input class="field-input" type="text" bind:value={editTitle} placeholder="Chapter title" />
+                </div>
+                <div class="field field-sm">
+                  <label class="field-label">Volume</label>
+                  <input class="field-input" type="text" bind:value={editVolume} placeholder="e.g. 3" />
+                </div>
+                <div class="field field-sm">
+                  <label class="field-label">Last Updated</label>
+                  <input class="field-input" type="text" bind:value={editLastUpdated} placeholder="Unix timestamp" />
+                </div>
+              </div>
+              <div class="chapter-edit-actions">
+                <button class="btn-secondary" type="button" onclick={cancelEditChapter}>Cancel</button>
+                <button class="btn-primary" type="button" onclick={applyEditChapter}>Apply</button>
+              </div>
+            </div>
+          {/if}
+
+          {#each Object.entries(ch.groups) as [groupName, urls]}
+            <div class="group-section">
+              <div class="group-header">
+                <span class="group-name">{groupName}</span>
+                <span class="group-count">{urls.length} pages</span>
+                <button
+                  class="upload-btn"
+                  type="button"
+                  onclick={() => handleUpload(selectedChapter, groupName)}
+                  disabled={uploadingChapter === selectedChapter}
+                >
+                  <PhUploadSimple />
+                  Upload
+                </button>
+              </div>
+              <div class="page-grid">
+                {#each urls as url, i}
+                  <div
+                    class="page-card"
+                    class:dragging={dragState?.chapterNum === selectedChapter && dragState?.groupName === groupName && dragState?.fromIndex === i}
+                    class:drag-over={dragOverIndex === i && dragState?.chapterNum === selectedChapter && dragState?.groupName === groupName && dragState?.fromIndex !== i}
+                    draggable="true"
+                    ondragstart={(e) => { e.dataTransfer!.effectAllowed = "move"; onDragStart(selectedChapter, groupName, i); }}
+                    ondragover={(e) => { e.preventDefault(); e.dataTransfer!.dropEffect = "move"; onDragOver(i); }}
+                    ondragleave={() => { if (dragOverIndex === i) dragOverIndex = null; }}
+                    ondragend={onDragEnd}
+                    ondrop={(e) => { e.preventDefault(); onDrop(selectedChapter, groupName, i); }}
+                  >
+                    <div class="page-grip" title="Drag to reorder">
+                      <PhDotsSixVertical />
+                    </div>
+                    <div class="page-thumb-wrap">
+                      <img src={url} alt="Page {i + 1}" class="page-thumb" loading="lazy" decoding="async" />
+                      <span class="page-num">{i + 1}</span>
+                    </div>
+                    <button
+                      class="page-open-btn"
+                      type="button"
+                      title="Open in browser"
+                      onclick={() => rpc.request.openExternal({ url })}
+                    >
+                      <PhCaretRight />
+                    </button>
+                    <div class="page-card-actions">
+                      <button
+                        class="page-move-btn"
+                        type="button"
+                        title="Move up"
+                        disabled={i === 0}
+                        onclick={() => moveImage(selectedChapter, groupName, i, -1)}
+                      >
+                        <PhCaretUp />
+                      </button>
+                      <button
+                        class="page-move-btn"
+                        type="button"
+                        title="Move down"
+                        disabled={i === urls.length - 1}
+                        onclick={() => moveImage(selectedChapter, groupName, i, 1)}
+                      >
+                        <PhCaretDown />
+                      </button>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/each}
+
+          <div class="add-group-row">
+            {#if newGroupUpload?.chapterNum === selectedChapter}
+              <input
+                class="new-group-input"
+                type="text"
+                placeholder="Group name"
+                bind:value={newGroupName}
+                onkeydown={(e) => e.key === "Enter" && handleNewGroupUpload()}
+              />
+              <button class="upload-btn" type="button" onclick={handleNewGroupUpload} disabled={!newGroupName.trim()}>
+                <PhUploadSimple />
+                Upload
+              </button>
+              <button class="btn-cancel-sm" type="button" onclick={() => (newGroupUpload = null)}>Cancel</button>
+            {:else}
+              <button class="upload-btn" type="button" onclick={() => { newGroupUpload = { chapterNum: selectedChapter }; newGroupName = ""; }}>
+                <PhPlus />
+                Upload to new group
+              </button>
+            {/if}
+          </div>
+        </div>
+      {:else if !selectedChapter}
+        <div class="chapter-placeholder">
+          <PhCaretRight class="placeholder-icon" />
+          <p>Select a chapter from the sidebar</p>
+        </div>
+      {/if}
+    </div>
+  </div>
+
+  {#if showAddChapter}
+    <div class="modal-overlay" role="dialog" aria-modal="true" onclick={() => (showAddChapter = false)}>
+      <div class="modal" onclick={(e) => e.stopPropagation()}>
+        <h2 class="modal-title">Add Chapter</h2>
         <div class="add-chapter-form">
           <div class="form-row">
             <div class="field field-sm">
@@ -589,220 +793,35 @@
             <button class="btn-primary" type="button" onclick={addChapter} disabled={!newChapterNum.trim()}>Add</button>
           </div>
         </div>
-      {/if}
-
-      {#if Object.keys(chapters).length === 0}
-        <div class="empty-chapters">
-          <p class="empty-text">No chapters yet. Add one to get started.</p>
-        </div>
-      {:else}
-        <div class="chapters-list">
-          {#each filteredChapterKeys as chNum}
-            {@const ch = chapters[chNum]}
-            <div class="chapter-item">
-              <button
-                class="chapter-row"
-                type="button"
-                onclick={() => (expandedChapter = expandedChapter === chNum ? null : chNum)}
-              >
-                <span class="chapter-caret">
-                  {#if expandedChapter === chNum}
-                    <PhCaretDown />
-                  {:else}
-                    <PhCaretRight />
-                  {/if}
-                </span>
-                <span class="chapter-num">Ch. {chNum}{#if ch.volume} <span class="chapter-vol-inline">v{ch.volume}</span>{/if}</span>
-                {#if ch.title && ch.title !== chNum}
-                  <span
-                    class="chapter-title"
-                    style="height:{textHeight(ch.title, 350, CHAPTER_TITLE_FONT, CHAPTER_TITLE_LINE_HEIGHT)}px"
-                  >{ch.title}</span>
-                {/if}
-                <span class="chapter-info">
-                  {#each Object.keys(ch.groups) as g}
-                    <span class="chapter-group-tag">{g}</span>
-                  {/each}
-                  <span class="chapter-img-count">{groupImageCount(ch)} img{groupImageCount(ch) !== 1 ? "s" : ""}</span>
-                  {#if ch.last_updated}
-                    <span class="chapter-date">{formatTimestamp(ch.last_updated)}</span>
-                  {/if}
-                </span>
-              </button>
-              <button
-                class="chapter-edit-btn"
-                type="button"
-                title="Edit chapter"
-                onclick={(e) => { e.stopPropagation(); startEditChapter(chNum); expandedChapter = chNum; }}
-              >
-                <PhPencilSimple />
-              </button>
-              <button
-                class="chapter-upload-btn"
-                type="button"
-                title="Upload images"
-                onclick={(e) => { e.stopPropagation(); startChapterUpload(chNum); }}
-                disabled={uploadingChapter === chNum}
-              >
-                <PhUploadSimple />
-              </button>
-              <button
-                class="chapter-remove-btn"
-                type="button"
-                title="Remove chapter"
-                onclick={() => (confirmRemoveChapter = chNum)}
-              >
-                <PhTrash />
-              </button>
-
-              {#if expandedChapter === chNum}
-                <div class="chapter-detail">
-                  {#if editingChapter === chNum}
-                    <div class="chapter-edit-form">
-                      <div class="chapter-edit-row">
-                        <div class="field field-sm">
-                          <label class="field-label">Chapter #</label>
-                          <input class="field-input" type="text" bind:value={editChapterNum} />
-                        </div>
-                        <div class="field field-sm">
-                          <label class="field-label">Title</label>
-                          <input class="field-input" type="text" bind:value={editTitle} placeholder="Chapter title" />
-                        </div>
-                        <div class="field field-sm">
-                          <label class="field-label">Volume</label>
-                          <input class="field-input" type="text" bind:value={editVolume} placeholder="e.g. 3" />
-                        </div>
-                        <div class="field field-sm">
-                          <label class="field-label">Last Updated</label>
-                          <input class="field-input" type="text" bind:value={editLastUpdated} placeholder="Unix timestamp" />
-                        </div>
-                      </div>
-                      <div class="chapter-edit-actions">
-                        <button class="btn-secondary" type="button" onclick={cancelEditChapter}>Cancel</button>
-                        <button class="btn-primary" type="button" onclick={applyEditChapter}>Apply</button>
-                      </div>
-                    </div>
-                  {/if}
-
-                  {#each Object.entries(ch.groups) as [groupName, urls]}
-                    <div class="group-section">
-                      <div class="group-header">
-                        <span class="group-name">{groupName}</span>
-                        <span class="group-count">{urls.length} images</span>
-                        <button
-                          class="upload-btn"
-                          type="button"
-                          onclick={() => handleUpload(chNum, groupName)}
-                          disabled={uploadingChapter === chNum}
-                        >
-                          <PhUploadSimple />
-                          Upload
-                        </button>
-                      </div>
-                      <div class="url-list">
-                        {#each urls as url, i}
-                          <div
-                            class="url-item"
-                            class:dragging={dragState?.chapterNum === chNum && dragState?.groupName === groupName && dragState?.fromIndex === i}
-                            class:drag-over-top={dragOverIndex === i && dragState?.chapterNum === chNum && dragState?.groupName === groupName && dragState?.fromIndex !== undefined && dragState.fromIndex < i}
-                            class:drag-over-bottom={dragOverIndex === i && dragState?.chapterNum === chNum && dragState?.groupName === groupName && dragState?.fromIndex !== undefined && dragState.fromIndex > i}
-                            draggable="true"
-                            ondragstart={(e) => { e.dataTransfer!.effectAllowed = "move"; onDragStart(chNum, groupName, i); }}
-                            ondragover={(e) => { e.preventDefault(); e.dataTransfer!.dropEffect = "move"; onDragOver(i); }}
-                            ondragleave={() => { if (dragOverIndex === i) dragOverIndex = null; }}
-                            ondragend={onDragEnd}
-                            ondrop={(e) => { e.preventDefault(); onDrop(chNum, groupName, i); }}
-                          >
-                            <span class="url-grip" aria-hidden="true" title="Drag to reorder"><PhDotsSixVertical /></span>
-                            <span class="url-index">{i + 1}</span>
-                            <div class="url-cell">
-                              <a
-                                class="url-link"
-                                href={url}
-                                rel="noopener noreferrer"
-                                onclick={(e) => {
-                                  e.preventDefault();
-                                  void rpc.request.openExternal({ url });
-                                }}
-                              >{url}</a>
-                              <figure class="url-thumb" aria-hidden="true">
-                                <img
-                                  src={url}
-                                  alt=""
-                                  loading="lazy"
-                                  decoding="async"
-                                />
-                                <figcaption class="url-thumb-cap">Page {i + 1}</figcaption>
-                              </figure>
-                            </div>
-                            <div class="url-move-btns">
-                              <button class="url-move-btn" type="button" title="Move up" disabled={i === 0} onclick={() => moveImage(chNum, groupName, i, -1)}>
-                                <PhCaretUp />
-                              </button>
-                              <button class="url-move-btn" type="button" title="Move down" disabled={i === urls.length - 1} onclick={() => moveImage(chNum, groupName, i, 1)}>
-                                <PhCaretDown />
-                              </button>
-                            </div>
-                          </div>
-                        {/each}
-                      </div>
-                    </div>
-                  {/each}
-                  <div class="add-group-row">
-                    {#if newGroupUpload?.chapterNum === chNum}
-                      <input
-                        class="new-group-input"
-                        type="text"
-                        placeholder="Group name"
-                        bind:value={newGroupName}
-                        onkeydown={(e) => e.key === "Enter" && handleNewGroupUpload()}
-                      />
-                      <button class="upload-btn" type="button" onclick={handleNewGroupUpload} disabled={!newGroupName.trim()}>
-                        <PhUploadSimple />
-                        Upload
-                      </button>
-                      <button class="btn-cancel-sm" type="button" onclick={() => (newGroupUpload = null)}>Cancel</button>
-                    {:else}
-                      <button class="upload-btn" type="button" onclick={() => { newGroupUpload = { chapterNum: chNum }; newGroupName = ""; }}>
-                        <PhPlus />
-                        Upload to new group
-                      </button>
-                    {/if}
-                  </div>
-                </div>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      {/if}
-
-      {#if uploadProgress}
-        <div class="upload-progress-bar">
-          <div class="upload-progress-inner">
-            <div class="upload-progress-shimmer"></div>
-          </div>
-          <div class="upload-progress-info">
-            <span class="upload-progress-label">
-              Uploading {uploadProgress.count} image{uploadProgress.count !== 1 ? "s" : ""}
-              <span class="upload-progress-group">to {uploadProgress.group}</span>
-            </span>
-            <span class="upload-progress-elapsed">{elapsedStr}</span>
-          </div>
-        </div>
-      {/if}
-
-      {#if uploadStatus}
-        <div class="upload-toast upload-toast-success">{uploadStatus}</div>
-      {/if}
-
-      {#if uploadError}
-        <div class="upload-error-toast">
-          <span class="upload-error-text">{uploadError}</span>
-          <button class="upload-error-dismiss" type="button" onclick={() => (uploadError = null)}>&times;</button>
-        </div>
-      {/if}
+      </div>
     </div>
-  </div>
+  {/if}
+
+  {#if uploadProgress}
+    <div class="upload-progress-bar">
+      <div class="upload-progress-inner">
+        <div class="upload-progress-shimmer"></div>
+      </div>
+      <div class="upload-progress-info">
+        <span class="upload-progress-label">
+          Uploading {uploadProgress.count} image{uploadProgress.count !== 1 ? "s" : ""}
+          <span class="upload-progress-group">to {uploadProgress.group}</span>
+        </span>
+        <span class="upload-progress-elapsed">{elapsedStr}</span>
+      </div>
+    </div>
+  {/if}
+
+  {#if uploadStatus}
+    <div class="upload-toast upload-toast-success">{uploadStatus}</div>
+  {/if}
+
+  {#if uploadError}
+    <div class="upload-error-toast">
+      <span class="upload-error-text">{uploadError}</span>
+      <button class="upload-error-dismiss" type="button" onclick={() => (uploadError = null)}>&times;</button>
+    </div>
+  {/if}
 </div>
 
 {#if confirmRemoveChapter !== null}
@@ -975,15 +994,17 @@
   .detail-page {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 0;
   }
 
+  /* ── Topbar ── */
   .detail-topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
+    margin-bottom: 20px;
   }
 
   .back-btn {
@@ -999,7 +1020,6 @@
     font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
   }
 
   .back-btn:hover {
@@ -1047,7 +1067,6 @@
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
     box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
   }
 
@@ -1066,13 +1085,216 @@
 
   :global(.btn-icon) { font-size: 0.95rem; }
 
-  /* Metadata */
-  .detail-content {
+  /* ── Two-column layout ── */
+  .detail-body {
     display: flex;
-    flex-direction: column;
-    gap: 28px;
+    gap: 20px;
+    align-items: flex-start;
   }
 
+  /* ── Chapter sidebar ── */
+  .chapter-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 120px);
+    position: sticky;
+    top: 76px;
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .sidebar-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .chapter-count {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--accent-blue);
+    font-weight: 600;
+    padding: 1px 7px;
+    background: var(--accent-blue-light);
+    border-radius: 999px;
+    margin-left: 2px;
+  }
+
+  .sidebar-groups {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .group-chip {
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-base);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .group-chip:hover {
+    border-color: var(--border-default);
+    color: var(--text-secondary);
+  }
+
+  .group-chip.active {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: #fff;
+  }
+
+  .sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sidebar-empty {
+    padding: 24px 12px;
+    text-align: center;
+  }
+
+  .sidebar-empty p {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  /* Compact rounded chapter pill */
+  .chapter-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .chapter-pill:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-subtle);
+  }
+
+  .chapter-pill.selected {
+    background: var(--accent-blue-light);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+    font-weight: 600;
+  }
+
+  .pill-num {
+    font-weight: 700;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    min-width: 0;
+    flex-shrink: 0;
+  }
+
+  .pill-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 400;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    min-width: 0;
+  }
+
+  .chapter-pill.selected .pill-title {
+    color: var(--accent-blue);
+  }
+
+  .pill-vol {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    font-weight: 400;
+    flex-shrink: 0;
+  }
+
+  .pill-imgs {
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    color: var(--text-muted);
+    padding: 1px 5px;
+    background: var(--bg-elevated);
+    border-radius: 999px;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  /* Big plus button */
+  .sidebar-plus {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    background: transparent;
+    color: var(--accent-blue);
+    cursor: pointer;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .sidebar-plus :global(svg) {
+    font-size: 1.5rem;
+  }
+
+  .sidebar-plus:hover {
+    background: var(--accent-blue-light);
+    color: var(--accent-blue-hover);
+  }
+
+  /* ── Right main panel ── */
+  .detail-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Metadata section */
   .metadata-section {
     display: flex;
     gap: 24px;
@@ -1085,7 +1307,7 @@
 
   .meta-cover {
     flex-shrink: 0;
-    width: 180px;
+    width: 160px;
   }
 
   .cover-img {
@@ -1143,7 +1365,6 @@
     font-family: inherit;
     font-size: 0.85rem;
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
   .field-input::placeholder { color: var(--text-muted); }
@@ -1164,7 +1385,6 @@
     font-size: 0.85rem;
     outline: none;
     resize: vertical;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
   .field-textarea::placeholder { color: var(--text-muted); }
@@ -1180,8 +1400,32 @@
     gap: 14px;
   }
 
-  /* Chapters */
-  .chapters-section {
+  /* Chapter placeholder (nothing selected) */
+  .chapter-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 60px 24px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    color: var(--text-muted);
+  }
+
+  .placeholder-icon {
+    font-size: 2rem;
+    opacity: 0.3;
+  }
+
+  .chapter-placeholder p {
+    font-size: 0.85rem;
+    margin: 0;
+  }
+
+  /* ── Chapter panel (selected chapter detail) ── */
+  .chapter-panel {
     background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
@@ -1189,334 +1433,94 @@
     overflow: hidden;
   }
 
-  .chapters-header {
+  .chapter-panel-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 18px 22px;
+    justify-content: space-between;
+    padding: 14px 20px;
     border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .section-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0;
-    letter-spacing: -0.01em;
-  }
-
-  .chapter-count {
-    font-family: var(--mono);
-    font-size: 0.7rem;
-    color: var(--accent-blue);
-    font-weight: 600;
-    padding: 2px 8px;
-    background: var(--accent-blue-light);
-    border-radius: 999px;
-  }
-
-  .chapters-header-actions {
-    margin-left: auto;
-  }
-
-  .group-filter-bar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 14px 22px;
-    flex-wrap: wrap;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .group-filter-chip {
-    padding: 5px 14px;
-    border-radius: 999px;
-    border: 1px solid var(--border-subtle);
-    background: var(--bg-base);
-    color: var(--text-muted);
-    font-family: inherit;
-    font-size: 0.72rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-  }
-
-  .group-filter-chip:hover {
-    border-color: var(--border-default);
-    color: var(--text-secondary);
-  }
-
-  .group-filter-chip.active {
-    background: var(--accent-blue);
-    border-color: var(--accent-blue);
-    color: #fff;
-  }
-
-  .add-chapter-btn {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 12px;
-    background: var(--accent-blue);
-    border: none;
-    border-radius: var(--radius-sm);
-    color: #fff;
-    font-family: inherit;
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .add-chapter-btn:hover { background: var(--accent-blue-hover); }
-
-  .add-chapter-btn :global(svg) { font-size: 0.85rem; }
-
-  .add-chapter-form {
-    padding: 16px 22px;
-    border-bottom: 1px solid var(--border-subtle);
-    background: var(--bg-elevated);
-  }
-
-  .form-row {
-    display: grid;
-    grid-template-columns: 100px 1fr 80px 1fr;
     gap: 12px;
-    margin-bottom: 12px;
   }
 
-  .field-sm .field-input {
-    padding: 8px 10px;
-    font-size: 0.8rem;
-  }
-
-  .form-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-  }
-
-  .btn-secondary {
-    padding: 7px 14px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    font-family: inherit;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-  }
-
-  .btn-secondary:hover { border-color: var(--border-default); color: var(--text-primary); }
-
-  .btn-primary {
-    padding: 7px 14px;
-    background: var(--accent-blue);
-    border: none;
-    border-radius: var(--radius-sm);
-    color: #fff;
-    font-family: inherit;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .btn-primary:hover { background: var(--accent-blue-hover); }
-
-  .btn-primary:disabled {
-    opacity: 0.4;
-    cursor: default;
-    pointer-events: none;
-  }
-
-  .empty-chapters {
-    padding: 40px 22px;
-    text-align: center;
-  }
-
-  .empty-text {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin: 0;
-  }
-
-  .chapters-list {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .chapter-item {
-    position: relative;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .chapter-item:last-child { border-bottom: none; }
-
-  .chapter-row {
+  .chapter-panel-title-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    width: 100%;
-    padding: 14px 118px 14px 22px;
-    border: none;
-    background: none;
-    cursor: pointer;
-    text-align: left;
-    font: inherit;
-    color: inherit;
-    transition: background 0.1s ease;
-  }
-
-  .chapter-row:hover { background: var(--bg-hover); }
-
-  .chapter-caret { color: var(--text-muted); display: grid; place-items: center; flex-shrink: 0; }
-  .chapter-caret :global(svg) { font-size: 0.85rem; }
-
-  .chapter-num {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: var(--text-primary);
-    min-width: 60px;
-    flex-shrink: 0;
-  }
-
-  .chapter-vol-inline {
-    font-weight: 400;
-    color: var(--text-muted);
-    margin-left: 2px;
-  }
-
-  .chapter-title {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    flex: 1;
-    overflow: hidden;
-    word-break: break-word;
-    line-height: 18px;
+    flex-wrap: wrap;
     min-width: 0;
   }
 
-  .chapter-info {
+  .chapter-panel-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .chapter-panel-subtitle {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+
+  .chapter-panel-vol {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    padding: 2px 8px;
+    background: var(--bg-elevated);
+    border-radius: 999px;
+    font-weight: 500;
+  }
+
+  .chapter-panel-date {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+  }
+
+  .chapter-panel-actions {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-left: auto;
+    gap: 4px;
     flex-shrink: 0;
   }
 
-  .chapter-group-tag {
-    font-size: 0.65rem;
-    padding: 3px 10px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: 999px;
-    color: var(--text-muted);
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .chapter-img-count {
-    font-family: var(--mono);
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
-
-  .chapter-date {
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
-
-  .chapter-edit-btn {
-    position: absolute;
-    right: 86px;
-    top: 11px;
-    width: 30px;
-    height: 30px;
+  .panel-action-btn {
+    width: 32px;
+    height: 32px;
     border-radius: var(--radius-sm);
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     color: var(--text-muted);
     cursor: pointer;
     display: grid;
     place-items: center;
-    opacity: 0;
-    transition: opacity 0.15s ease, color 0.15s ease;
-    z-index: 2;
   }
 
-  .chapter-item:hover .chapter-edit-btn { opacity: 1; }
+  .panel-action-btn :global(svg) { font-size: 0.9rem; }
 
-  .chapter-edit-btn:hover { color: var(--accent-blue); }
-
-  .chapter-edit-btn :global(svg) { font-size: 0.9rem; }
-
-  .chapter-upload-btn {
-    position: absolute;
-    right: 52px;
-    top: 11px;
-    width: 30px;
-    height: 30px;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-    opacity: 0;
-    transition: opacity 0.15s ease, color 0.15s ease;
-    z-index: 2;
+  .panel-action-btn:hover {
+    border-color: var(--border-subtle);
+    color: var(--accent-blue);
+    background: var(--bg-hover);
   }
 
-  .chapter-item:hover .chapter-upload-btn { opacity: 1; }
-
-  .chapter-upload-btn:hover { color: var(--accent-blue); }
-
-  .chapter-upload-btn:disabled { opacity: 0.3; pointer-events: none; }
-
-  .chapter-upload-btn :global(svg) { font-size: 0.9rem; }
-
-  .chapter-remove-btn {
-    position: absolute;
-    right: 18px;
-    top: 11px;
-    width: 30px;
-    height: 30px;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-    opacity: 0;
-    transition: opacity 0.15s ease, color 0.15s ease;
-    z-index: 2;
+  .panel-action-btn-danger:hover {
+    color: var(--accent-rose);
+    background: var(--accent-rose-light);
+    border-color: transparent;
   }
 
-  .chapter-item:hover .chapter-remove-btn { opacity: 1; }
-
-  .chapter-remove-btn:hover { color: var(--accent-rose); }
-
-  .chapter-remove-btn :global(svg) { font-size: 0.9rem; }
-
-  .chapter-detail {
-    padding: 4px 22px 20px 46px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  .panel-action-btn:disabled {
+    opacity: 0.3;
+    pointer-events: none;
   }
 
+  /* Chapter edit form */
   .chapter-edit-form {
     background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 14px 20px;
   }
 
   .chapter-edit-row {
@@ -1532,20 +1536,21 @@
     justify-content: flex-end;
   }
 
+  /* Group section */
   .group-section {
-    background: var(--bg-base);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    padding: 14px 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .group-section:last-of-type {
+    border-bottom: none;
   }
 
   .group-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-subtle);
+    gap: 10px;
+    margin-bottom: 14px;
   }
 
   .group-name {
@@ -1556,7 +1561,7 @@
 
   .group-count {
     font-family: var(--mono);
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: var(--text-muted);
   }
 
@@ -1574,7 +1579,6 @@
     font-weight: 500;
     cursor: pointer;
     margin-left: auto;
-    transition: all 0.15s ease;
   }
 
   .upload-btn:hover {
@@ -1590,11 +1594,154 @@
 
   .upload-btn :global(svg) { font-size: 0.8rem; }
 
+  /* ── Page thumbnail grid ── */
+  .page-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+  }
+
+  .page-card {
+    position: relative;
+    border-radius: var(--radius-md);
+    border: 2px solid var(--border-subtle);
+    background: var(--bg-base);
+    overflow: hidden;
+    cursor: grab;
+  }
+
+  .page-card:hover {
+    border-color: var(--border-default);
+  }
+
+  .page-card.dragging {
+    opacity: 0.3;
+    border-color: var(--accent-blue);
+  }
+
+  .page-card.drag-over {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px var(--accent-blue-light);
+  }
+
+  .page-card:active {
+    cursor: grabbing;
+  }
+
+  .page-grip {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    z-index: 2;
+    cursor: grab;
+    opacity: 0;
+  }
+
+  .page-grip :global(svg) { font-size: 0.8rem; }
+
+  .page-card:hover .page-grip { opacity: 1; }
+
+  .page-open-btn {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.45);
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    z-index: 2;
+    opacity: 0;
+  }
+
+  .page-open-btn :global(svg) { font-size: 0.6rem; }
+
+  .page-card:hover .page-open-btn { opacity: 1; }
+
+  .page-open-btn:hover {
+    background: var(--accent-blue);
+  }
+
+  .page-thumb-wrap {
+    position: relative;
+    aspect-ratio: 2/3;
+    background: var(--bg-elevated);
+  }
+
+  .page-thumb {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .page-num {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 1px 6px;
+    border-radius: 4px;
+    z-index: 2;
+  }
+
+  .page-card-actions {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 2;
+    opacity: 0;
+  }
+
+  .page-card:hover .page-card-actions { opacity: 1; }
+
+  .page-move-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.45);
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+
+  .page-move-btn :global(svg) { font-size: 0.65rem; }
+
+  .page-move-btn:hover:not(:disabled) {
+    background: var(--accent-blue);
+  }
+
+  .page-move-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  /* Add group row */
   .add-group-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding-top: 4px;
+    padding: 12px 20px 16px;
   }
 
   .new-group-input {
@@ -1629,162 +1776,86 @@
 
   .btn-cancel-sm:hover { color: var(--text-secondary); border-color: var(--border-default); }
 
-  .url-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .url-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 6px 0;
+  /* Shared buttons */
+  .btn-secondary {
+    padding: 7px 14px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
-    transition: background 0.12s ease, opacity 0.15s ease, box-shadow 0.15s ease;
-    position: relative;
-  }
-
-  .url-item:hover {
-    background: color-mix(in srgb, var(--bg-elevated) 60%, transparent);
-  }
-
-  .url-item.dragging {
-    opacity: 0.35;
-    background: color-mix(in srgb, var(--accent-blue-light) 50%, transparent);
-  }
-
-  .url-item.drag-over-top {
-    box-shadow: inset 0 2px 0 var(--accent-blue);
-  }
-
-  .url-item.drag-over-bottom {
-    box-shadow: inset 0 -2px 0 var(--accent-blue);
-  }
-
-  .url-grip {
-    display: grid;
-    place-items: center;
-    width: 18px;
-    flex-shrink: 0;
-    cursor: grab;
-    color: var(--text-muted);
-    opacity: 0;
-    transition: opacity 0.15s ease, color 0.15s ease;
-    padding-top: 2px;
-    font-size: 0.9rem;
-  }
-
-  .url-grip:active { cursor: grabbing; }
-
-  .url-item:hover .url-grip { opacity: 0.6; }
-  .url-grip:hover { opacity: 1 !important; color: var(--text-secondary); }
-
-  .url-move-btns {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    flex-shrink: 0;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    padding-top: 1px;
-  }
-
-  .url-item:hover .url-move-btns { opacity: 1; }
-
-  .url-move-btn {
-    width: 22px;
-    height: 18px;
-    border-radius: 3px;
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
     cursor: pointer;
-    display: grid;
-    place-items: center;
-    transition: color 0.12s ease, background 0.12s ease;
   }
 
-  .url-move-btn:hover:not(:disabled) {
-    color: var(--accent-blue);
-    background: var(--accent-blue-light);
+  .btn-secondary:hover { border-color: var(--border-default); color: var(--text-primary); }
+
+  .btn-primary {
+    padding: 7px 14px;
+    background: var(--accent-blue);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
   }
 
-  .url-move-btn:disabled {
-    opacity: 0.25;
+  .btn-primary:hover { background: var(--accent-blue-hover); }
+
+  .btn-primary:disabled {
+    opacity: 0.4;
     cursor: default;
     pointer-events: none;
   }
 
-  .url-move-btn :global(svg) { font-size: 0.75rem; }
-
-  .url-cell {
-    flex: 1;
-    min-width: 0;
+  .field-sm .field-input {
+    padding: 8px 10px;
+    font-size: 0.8rem;
   }
 
-  .url-index {
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    color: var(--text-muted);
-    min-width: 22px;
-    text-align: right;
-    flex-shrink: 0;
-    padding-top: 2px;
+  .form-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 80px 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
   }
 
-  .url-link {
-    font-family: var(--mono);
-    font-size: 0.7rem;
-    color: var(--accent-blue);
-    text-decoration: none;
-    word-break: break-all;
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
   }
 
-  .url-link:hover { text-decoration: underline; }
-
-  .url-thumb {
-    display: none;
-    margin: 10px 0 0;
-    padding: 0;
-    max-width: min(100%, 300px);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-md);
-    overflow: hidden;
-  }
-
-  .url-thumb img {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: 240px;
-    object-fit: contain;
-    object-position: top center;
-    background: var(--bg-elevated);
-  }
-
-  .url-thumb-cap {
-    margin: 0;
-    padding: 6px 10px 8px;
-    font-family: var(--mono);
-    font-size: 0.62rem;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    border-top: 1px solid var(--border-subtle);
+  /* Fetch Metadata Button */
+  .fetch-meta-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    padding: 7px 14px;
     background: var(--bg-base);
+    border: 1px dashed var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
   }
 
-  .url-item:hover .url-thumb,
-  .url-item:focus-within .url-thumb,
-  .url-item.drag-over-top .url-thumb,
-  .url-item.drag-over-bottom .url-thumb {
-    display: block;
+  .fetch-meta-btn:hover {
+    border-style: solid;
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+    background: var(--accent-blue-light);
   }
 
+  .fetch-meta-btn :global(svg) { font-size: 1rem; }
+
+  /* Upload progress */
   .upload-progress-bar {
     position: fixed;
     bottom: 24px;
@@ -1912,7 +1983,7 @@
     color: var(--accent-rose);
   }
 
-  /* Modal */
+  /* ── Modal ── */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -1997,34 +2068,12 @@
 
   .modal-btn-danger :global(svg) { font-size: 0.95rem; }
 
-  /* Fetch Metadata Button */
-  .fetch-meta-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    align-self: flex-start;
-    padding: 7px 14px;
-    background: var(--bg-base);
-    border: 1px dashed var(--border-default);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    font-family: inherit;
-    font-size: 0.78rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
+  /* Add chapter form (inside modal) */
+  .add-chapter-form {
+    text-align: left;
   }
 
-  .fetch-meta-btn:hover {
-    border-style: solid;
-    border-color: var(--accent-blue);
-    color: var(--accent-blue);
-    background: var(--accent-blue-light);
-  }
-
-  .fetch-meta-btn :global(svg) { font-size: 1rem; }
-
-  /* Fetch Modal */
+  /* ── Fetch Modal ── */
   .fetch-modal {
     background: var(--bg-surface);
     border: 1px solid var(--border-default);
@@ -2125,7 +2174,6 @@
     text-align: left;
     font: inherit;
     color: inherit;
-    transition: all 0.12s ease;
     width: 100%;
   }
 
@@ -2179,7 +2227,7 @@
     word-break: break-word;
   }
 
-  /* MangaBaka merge preview (editorial diff) */
+  /* MangaBaka merge preview */
   .fetch-preview-masthead {
     position: relative;
     padding: 12px 28px 22px;
@@ -2501,7 +2549,24 @@
     justify-content: flex-end;
   }
 
+  /* ── Responsive ── */
   @media (max-width: 768px) {
+    .detail-body {
+      flex-direction: column;
+    }
+
+    .chapter-sidebar {
+      width: 100%;
+      max-height: none;
+      position: static;
+    }
+
+    .sidebar-list {
+      flex-direction: row;
+      flex-wrap: wrap;
+      max-height: 160px;
+    }
+
     .metadata-section {
       flex-direction: column;
     }
@@ -2520,6 +2585,10 @@
 
     .folder-path {
       display: none;
+    }
+
+    .chapter-edit-row {
+      grid-template-columns: 1fr 1fr;
     }
   }
 </style>
