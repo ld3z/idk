@@ -59,7 +59,7 @@ const DEFAULT_MANGA: MangaJson = {
 	chapters: {},
 };
 
-const DB_FILENAME = "kaguya-settings.sqlite";
+const DB_FILENAME = "kaguya.sqlite";
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
 
