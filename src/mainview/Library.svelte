@@ -7,6 +7,10 @@
   import PhTrash from "~icons/ph/trash";
   import PhFolderOpen from "~icons/ph/folder-open";
   import PhWarningFill from "~icons/ph/warning-fill";
+  import PhGithubLogoFill from "~icons/ph/github-logo-fill";
+  import PhCheckCircle from "~icons/ph/check-circle";
+  import PhXCircle from "~icons/ph/x-circle";
+  import PhArrowSquareOut from "~icons/ph/arrow-square-out";
 
   interface Props {
     rpc: any;
@@ -20,6 +24,29 @@
   let searchQuery = $state("");
   let addingManga = $state(false);
   let confirmRemoveId = $state<number | null>(null);
+
+  type PushResult = { id: number; title: string; status: "ok"; cubariUrl: string } | { id: number; title: string; status: "err"; error: string };
+  let pushing = $state(false);
+  let pushResults = $state<PushResult[]>([]);
+  let showPushModal = $state(false);
+
+  async function pushAllToGithub() {
+    if (pushing || library.length === 0) return;
+    pushing = true;
+    pushResults = [];
+    showPushModal = true;
+
+    for (const entry of library) {
+      try {
+        const res = await rpc.request.pushToGithub({ id: entry.id });
+        pushResults = [...pushResults, { id: entry.id, title: entry.manga.title, status: "ok", cubariUrl: res.cubariUrl }];
+      } catch (e: any) {
+        pushResults = [...pushResults, { id: entry.id, title: entry.manga.title, status: "err", error: e.message ?? "Unknown error" }];
+      }
+    }
+
+    pushing = false;
+  }
 
   let filteredLibrary = $derived(
     searchQuery.trim()
@@ -104,6 +131,15 @@
   const CARD_AUTHOR_LINE_HEIGHT = 15;
   const CARD_TEXT_FUDGE = 2;
 
+  // Push modal text sizing
+  // modal--push is max 640px wide, padding 28px each side = 584px inner, minus status icon 18px + gap 10px = ~556px for text column
+  const PUSH_TITLE_FONT = '500 13.1px "Newsreader", Georgia, "Times New Roman", serif';
+  const PUSH_TITLE_LH = 18;
+  const PUSH_TITLE_WIDTH = 380; // title flex:1, leaves room for cubari btn
+  const PUSH_ERROR_FONT = '400 11.5px "IBM Plex Mono", ui-monospace, monospace';
+  const PUSH_ERROR_LH = 17;
+  const PUSH_ERROR_WIDTH = 540; // full row width minus icon indent
+
   function textHeight(text: string, widthPx: number, font: string, lh: number, minLines = 1): number {
     if (!text) return lh * minLines + CARD_TEXT_FUDGE;
     const p = prepare(text, font);
@@ -128,6 +164,10 @@
           bind:value={searchQuery}
         />
       </div>
+      <button class="github-btn" type="button" onclick={pushAllToGithub} disabled={pushing || library.length === 0} title="Push all JSONs to GitHub">
+        <PhGithubLogoFill class="btn-icon" />
+        {pushing ? "Pushing..." : "Push to GitHub"}
+      </button>
       <button class="add-btn" type="button" onclick={addManga} disabled={addingManga}>
         <PhPlus class="btn-icon" />
         {addingManga ? "Selecting..." : "Add Manga"}
@@ -237,6 +277,64 @@
   </div>
 {/if}
 
+{#if showPushModal}
+  <div class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal modal--push" onclick={(e) => e.stopPropagation()}>
+      <h2 class="modal-title">Push to GitHub</h2>
+      <p class="modal-sub">
+        {#if pushing}
+          Pushing {pushResults.length} / {library.length}…
+        {:else}
+          {pushResults.filter(r => r.status === "ok").length} succeeded,
+          {pushResults.filter(r => r.status === "err").length} failed.
+        {/if}
+      </p>
+      <div class="push-list">
+        {#each library as entry}
+          {@const result = pushResults.find(r => r.id === entry.id)}
+          {@const errText = result?.status === "err" ? result.error : ""}
+          <div class="push-row" class:push-row--ok={result?.status === "ok"} class:push-row--err={result?.status === "err"}>
+            <div class="push-row-status">
+              {#if !result}
+                <span class="push-dot push-dot--pending"></span>
+              {:else if result.status === "ok"}
+                <PhCheckCircle class="push-icon push-icon--ok" />
+              {:else}
+                <PhXCircle class="push-icon push-icon--err" />
+              {/if}
+            </div>
+            <div class="push-row-body">
+              <div class="push-row-title-line">
+                <span
+                  class="push-row-title"
+                  style="min-height:{textHeight(entry.manga.title, PUSH_TITLE_WIDTH, PUSH_TITLE_FONT, PUSH_TITLE_LH)}px"
+                >{entry.manga.title}</span>
+                {#if result?.status === "ok"}
+                  <button class="push-cubari-btn" type="button" onclick={() => rpc.request.openExternal({ url: result.cubariUrl })} title="Open in Cubari">
+                    <PhArrowSquareOut />
+                    Cubari
+                  </button>
+                {/if}
+              </div>
+              {#if result?.status === "err"}
+                <p
+                  class="push-row-error"
+                  style="min-height:{textHeight(errText, PUSH_ERROR_WIDTH, PUSH_ERROR_FONT, PUSH_ERROR_LH)}px"
+                >{errText}</p>
+              {/if}
+            </div>
+          </div>
+        {/each}
+      </div>
+      {#if !pushing}
+        <div class="modal-actions">
+          <button class="modal-btn-cancel" type="button" onclick={() => (showPushModal = false)}>Close</button>
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
+
 <style>
   .library-page {
     display: flex;
@@ -244,13 +342,168 @@
     gap: 28px;
   }
 
-  .page-header {
+  /* GitHub push button */
+  .github-btn {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: 16px;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--bg-surface);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0px 0px 0px 1px var(--border-strong);
+    transition: background 0.15s ease, box-shadow 0.15s ease;
   }
+
+  .github-btn:hover {
+    background: var(--bg-elevated);
+    box-shadow: 0px 0px 0px 1px var(--text-muted);
+  }
+
+  .github-btn:focus-visible {
+    outline: 2px solid var(--focus-blue);
+    outline-offset: 2px;
+  }
+
+  .github-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  /* Push modal */
+  .modal--push {
+    max-width: 640px;
+    text-align: left;
+  }
+
+  .modal-sub {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin: 4px 0 16px;
+    font-family: var(--mono);
+  }
+
+  .push-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 420px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+  }
+
+  .push-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-base);
+    box-shadow: 0px 0px 0px 1px var(--border-subtle);
+    min-width: 0;
+  }
+
+  .push-row--ok {
+    box-shadow: 0px 0px 0px 1px var(--accent-green);
+    background: var(--accent-green-light);
+  }
+
+  .push-row--err {
+    box-shadow: 0px 0px 0px 1px var(--accent-rose);
+    background: var(--accent-rose-light);
+  }
+
+  .push-row-status {
+    flex-shrink: 0;
+    width: 18px;
+    display: grid;
+    place-items: start center;
+    padding-top: 2px;
+  }
+
+  .push-dot--pending {
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border-strong);
+    margin-top: 4px;
+  }
+
+  :global(.push-icon) { font-size: 1rem; }
+  :global(.push-icon--ok) { color: var(--accent-green); }
+  :global(.push-icon--err) { color: var(--accent-rose); }
+
+  .push-row-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .push-row-title-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .push-row-title {
+    flex: 1;
+    font-size: 0.82rem;
+    font-weight: 500;
+    font-family: var(--serif);
+    color: var(--text-primary);
+    line-height: 18px;
+    word-break: break-word;
+    min-width: 0;
+  }
+
+  .push-row-error {
+    font-size: 0.72rem;
+    color: var(--accent-rose);
+    font-family: var(--mono);
+    word-break: break-word;
+    white-space: pre-wrap;
+    line-height: 17px;
+    margin: 0;
+  }
+
+  .push-cubari-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: none;
+    border-radius: 999px;
+    background: var(--accent-green-light);
+    color: var(--accent-green);
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0px 0px 0px 1px color-mix(in srgb, var(--accent-green) 35%, transparent);
+  }
+
+  .push-cubari-btn:hover {
+    background: var(--accent-green);
+    color: #faf9f5;
+  }
+
+  .push-cubari-btn:focus-visible {
+    outline: 2px solid var(--focus-blue);
+    outline-offset: 2px;
+  }
+
+  .push-cubari-btn :global(svg) { font-size: 0.72rem; }
 
   .page-title {
     font-size: 2.3rem;
