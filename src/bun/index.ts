@@ -29,11 +29,11 @@ type RpcSchema = {
 			removeChapter: { params: { id: number; chapterNum: string }; response: { ok: true } };
 			uploadImages: { params: { id: number; chapterNum: string; group: string; filePaths: string[] }; response: { urls: string[] } };
 			uploadImagesFromFolder: { params: { id: number; chapterNum: string; group: string; folderPath: string }; response: { urls: string[] } };
+			pushToGithub: { params: { id: number; repoSubfolder?: string }; response: { ok: true; rawUrl: string; cubariUrl: string } };
 			pickFolder: { params: void; response: { path: string } | null };
 			pickImages: { params: void; response: { paths: string[] } | null };
 			searchMangaBaka: { params: { query: string }; response: { results: { id: number; title: string; description: string; author: string; artist: string; cover: string }[] } };
-			openExternal: { params: { url: string }; response: { ok: boolean } };
-		};
+			openExternal: { params: { url: string }; response: { ok: boolean } };		};
 		messages: Record<never, never>;
 	};
 	webview: {
@@ -204,6 +204,65 @@ async function uploadToImgChest(apiKey: string, filePaths: string[]): Promise<st
 	return (json.data?.images ?? []).map((img: any) => img.link);
 }
 
+function getGithubSettings(db: Database): { token: string; owner: string; repo: string; branch: string } | null {
+	const row = db.query(`SELECT githubToken, githubOwner, githubRepo, githubBranch FROM app_settings WHERE id = 1`).get() as
+		| { githubToken: string; githubOwner: string; githubRepo: string; githubBranch: string }
+		| undefined;
+	if (!row || !row.githubToken || !row.githubOwner || !row.githubRepo) return null;
+	return {
+		token: row.githubToken,
+		owner: row.githubOwner,
+		repo: row.githubRepo,
+		branch: row.githubBranch || "main",
+	};
+}
+
+async function pushJsonToGithub(
+	token: string,
+	owner: string,
+	repo: string,
+	branch: string,
+	repoFilePath: string,
+	content: string,
+	commitMessage: string,
+): Promise<{ rawUrl: string; cubariUrl: string }> {
+	const apiBase = `https://api.github.com/repos/${owner}/${repo}/contents`;
+	const normalizedPath = repoFilePath.replace(/\\/g, "/");
+	const url = `${apiBase}/${normalizedPath}`;
+	const headers = {
+		Authorization: `token ${token}`,
+		Accept: "application/vnd.github.v3+json",
+		"Content-Type": "application/json",
+	};
+
+	// Check for existing file SHA (needed for updates)
+	let sha: string | undefined;
+	const getRes = await fetch(`${url}?ref=${branch}`, { headers });
+	if (getRes.ok) {
+		const data = (await getRes.json()) as { sha?: string };
+		sha = data.sha;
+	} else if (getRes.status !== 404) {
+		const text = await getRes.text();
+		throw new Error(`GitHub API error checking file (${getRes.status}): ${text}`);
+	}
+
+	const encoded = Buffer.from(content, "utf-8").toString("base64");
+	const body: Record<string, string> = { message: commitMessage, content: encoded, branch };
+	if (sha) body.sha = sha;
+
+	const putRes = await fetch(url, { method: "PUT", headers, body: JSON.stringify(body) });
+	if (!putRes.ok) {
+		const text = await putRes.text();
+		throw new Error(`GitHub push failed (${putRes.status}): ${text}`);
+	}
+
+	const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${normalizedPath}`;
+	const gistPath = `raw/${owner}/${repo}/${branch}/${normalizedPath}`;
+	const cubariUrl = `https://cubari.moe/read/gist/${Buffer.from(gistPath, "utf-8").toString("base64")}/`;
+
+	return { rawUrl, cubariUrl };
+}
+
 async function getMainViewUrl(): Promise<string> {
 	const channel = await Updater.localInfo.channel();
 	if (channel === "dev") {
@@ -329,16 +388,50 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 				const urls = await uploadToImgChest(apiKey, params.filePaths);
 
 				const manga = readMangaJson(row.folderPath);
-				if (manga && manga.chapters[params.chapterNum]) {
+				if (manga) {
+					if (!manga.chapters[params.chapterNum]) {
+						manga.chapters[params.chapterNum] = {
+							title: params.chapterNum,
+							volume: "",
+							last_updated: String(Math.floor(Date.now() / 1000)),
+							groups: {},
+						};
+					}
 					const chapter = manga.chapters[params.chapterNum];
 					if (!chapter.groups[params.group]) {
 						chapter.groups[params.group] = [];
 					}
 					chapter.groups[params.group].push(...urls);
+					chapter.last_updated = String(Math.floor(Date.now() / 1000));
 					writeMangaJson(row.folderPath, manga);
 				}
 
 				return { urls };
+			},
+
+			// --- GitHub Push ---
+			pushToGithub: async (params) => {
+				const gh = getGithubSettings(db);
+				if (!gh) throw new Error("GitHub not configured. Set token, owner, and repo in Settings.");
+
+				const row = db.query(`SELECT folderPath FROM manga_library WHERE id = ?`).get(params.id) as { folderPath: string } | undefined;
+				if (!row) throw new Error("Manga not found");
+
+				const resolved = resolveMangaMetadataFile(row.folderPath);
+				if (!resolved) throw new Error("No manga JSON found in folder");
+
+				const content = readFileSync(resolved.fullPath, "utf-8");
+				const filename = basename(resolved.fullPath);
+				const subfolder = params.repoSubfolder?.trim().replace(/^\/|\/$/g, "") ?? "";
+				const repoFilePath = subfolder ? `${subfolder}/${filename}` : filename;
+				const commitMessage = `Sync: ${resolved.manga.title} (${filename})`;
+
+				const { rawUrl, cubariUrl } = await pushJsonToGithub(
+					gh.token, gh.owner, gh.repo, gh.branch,
+					repoFilePath, content, commitMessage,
+				);
+
+				return { ok: true as const, rawUrl, cubariUrl };
 			},
 
 			// --- Native Dialogs ---
@@ -413,12 +506,21 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 				const urls = await uploadToImgChest(apiKey, files);
 
 				const manga = readMangaJson(row.folderPath);
-				if (manga && manga.chapters[params.chapterNum]) {
+				if (manga) {
+					if (!manga.chapters[params.chapterNum]) {
+						manga.chapters[params.chapterNum] = {
+							title: params.chapterNum,
+							volume: "",
+							last_updated: String(Math.floor(Date.now() / 1000)),
+							groups: {},
+						};
+					}
 					const chapter = manga.chapters[params.chapterNum];
 					if (!chapter.groups[params.group]) {
 						chapter.groups[params.group] = [];
 					}
 					chapter.groups[params.group].push(...urls);
+					chapter.last_updated = String(Math.floor(Date.now() / 1000));
 					writeMangaJson(row.folderPath, manga);
 				}
 

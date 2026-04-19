@@ -659,15 +659,6 @@
                 <PhPencilSimple />
               </button>
               <button
-                class="panel-action-btn"
-                type="button"
-                title="Upload images"
-                onclick={() => startChapterUpload(selectedChapter)}
-                disabled={uploadingChapter === selectedChapter}
-              >
-                <PhUploadSimple />
-              </button>
-              <button
                 class="panel-action-btn panel-action-btn-danger"
                 type="button"
                 title="Remove chapter"
