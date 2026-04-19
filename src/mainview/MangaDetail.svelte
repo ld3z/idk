@@ -247,10 +247,10 @@
 
   async function saveMetadata() {
     saveStatus = "saving";
-    const before: MangaJson = { ...entry.manga, chapters: cloneChapters(entry.manga.chapters) };
     const manga: MangaJson = { title, description, author, artist, cover, chapters: cloneChapters(chapters) };
     try {
-      await rpc.request.updateManga({ id: entry.id, manga });
+      const res = await rpc.request.updateManga({ id: entry.id, manga });
+      const before = res.before ?? { ...manga, chapters: {} };
       entry.manga = { ...manga, chapters: cloneChapters(manga.chapters) };
       hasChanges = false;
       saveStatus = "saved";

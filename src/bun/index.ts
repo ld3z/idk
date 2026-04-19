@@ -24,7 +24,7 @@ type RpcSchema = {
 			listManga: { params: void; response: MangaEntry[] };
 			addMangaFolder: { params: { folderPath: string }; response: MangaEntry };
 			removeManga: { params: { id: number }; response: { ok: true } };
-			updateManga: { params: { id: number; manga: MangaJson }; response: { ok: true } };
+			updateManga: { params: { id: number; manga: MangaJson }; response: { ok: true; before: MangaJson | null } };
 			addChapter: { params: { id: number; chapterNum: string; chapter: Chapter }; response: { ok: true } };
 			removeChapter: { params: { id: number; chapterNum: string }; response: { ok: true } };
 			uploadImages: { params: { id: number; chapterNum: string; group: string; filePaths: string[] }; response: { urls: string[] } };
@@ -348,8 +348,9 @@ const rpc = BrowserView.defineRPC<RpcSchema>({
 			updateManga: (params) => {
 				const row = db.query(`SELECT folderPath FROM manga_library WHERE id = ?`).get(params.id) as { folderPath: string } | undefined;
 				if (!row) throw new Error("Manga not found");
+				const before = readMangaJson(row.folderPath);
 				writeMangaJson(row.folderPath, params.manga);
-				return { ok: true as const };
+				return { ok: true as const, before };
 			},
 
 			// --- Chapters ---
