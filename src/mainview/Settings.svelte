@@ -446,6 +446,15 @@
     background: var(--border-default);
   }
 
+  .action-btn-outline:active {
+    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+  }
+
+  .action-btn-outline:focus-visible {
+    outline: 2px solid var(--focus-blue);
+    outline-offset: 2px;
+  }
+
   :global(.btn-icon) {
     font-size: 0.95rem;
   }
@@ -470,6 +479,15 @@
 
   .save-btn:hover {
     background: var(--accent-brand-hover);
+  }
+
+  .save-btn:active:not(:disabled) {
+    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.18);
+  }
+
+  .save-btn:focus-visible {
+    outline: 2px solid var(--focus-blue);
+    outline-offset: 2px;
   }
 
   .save-btn:disabled {
@@ -553,6 +571,7 @@
     color: var(--text-primary);
     margin: 0;
     line-height: 1.2;
+    letter-spacing: -0.01em;
   }
 
   .card-desc {
@@ -575,12 +594,12 @@
   }
 
   .field-label {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 500;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-family: var(--mono);
+    letter-spacing: 0.06em;
+    font-family: var(--sans);
   }
 
   .field-readonly {
@@ -616,6 +635,10 @@
 
   .field-input:focus {
     box-shadow: 0px 0px 0px 1px var(--focus-blue), 0px 0px 0px 4px rgba(56, 152, 236, 0.15);
+  }
+
+  .field-input:focus-visible {
+    outline: none;
   }
 
   .input-group {
@@ -671,6 +694,7 @@
     font-family: var(--serif);
     color: var(--text-primary);
     margin: 0;
+    letter-spacing: -0.01em;
   }
 
   .danger-desc {
@@ -702,6 +726,15 @@
     background: var(--accent-rose-light);
   }
 
+  .btn-danger:active {
+    box-shadow: inset 0px 0px 0px 1px rgba(181, 51, 51, 0.3);
+  }
+
+  .btn-danger:focus-visible {
+    outline: 2px solid var(--focus-blue);
+    outline-offset: 2px;
+  }
+
   .settings-footer {
     display: flex;
     justify-content: center;
@@ -715,6 +748,7 @@
     font-weight: 500;
     font-family: var(--serif);
     color: var(--text-secondary);
+    letter-spacing: -0.01em;
   }
 
   .footer-sep {
@@ -801,6 +835,15 @@
     background: var(--border-default);
   }
 
+  .modal-btn-cancel:active {
+    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+  }
+
+  .modal-btn-cancel:focus-visible {
+    outline: 2px solid var(--focus-blue);
+    outline-offset: 2px;
+  }
+
   .modal-btn-confirm {
     display: flex;
     align-items: center;
@@ -820,6 +863,15 @@
 
   .modal-btn-confirm:hover {
     background: #9a2b2b;
+  }
+
+  .modal-btn-confirm:active {
+    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.18);
+  }
+
+  .modal-btn-confirm:focus-visible {
+    outline: 2px solid var(--focus-blue);
+    outline-offset: 2px;
   }
 
   .modal-btn-confirm :global(svg) {

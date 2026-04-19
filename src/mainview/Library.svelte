@@ -329,6 +329,15 @@
 
   .add-btn:hover { background: var(--accent-brand-hover); }
 
+  .add-btn:focus-visible {
+    outline: 2px solid var(--focus-blue);
+    outline-offset: 2px;
+  }
+
+  .add-btn:active:not(:disabled) {
+    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+  }
+
   .add-btn:disabled { opacity: 0.6; cursor: default; pointer-events: none; }
 
   :global(.btn-icon) { font-size: 0.95rem; }
@@ -387,6 +396,10 @@
     transform: translateY(-2px);
   }
 
+  .manga-card:focus-within {
+    box-shadow: 0px 0px 0px 1px var(--accent-brand), 0px 0px 0px 4px rgba(201, 100, 66, 0.12);
+  }
+
   .manga-card.unavailable { opacity: 0.6; }
 
   .card-clickable {
@@ -399,6 +412,12 @@
     cursor: pointer;
     color: inherit;
     font: inherit;
+    border-radius: var(--radius-lg);
+  }
+
+  .card-clickable:focus-visible {
+    outline: 2px solid var(--focus-blue);
+    outline-offset: -2px;
   }
 
   .card-cover {
@@ -527,6 +546,10 @@
     box-shadow: 0px 0px 0px 1px var(--accent-rose);
   }
 
+  .card-remove-btn:active {
+    transform: scale(0.96);
+  }
+
   .card-remove-btn:hover :global(svg) {
     color: #faf9f5;
     opacity: 1;
@@ -614,7 +637,16 @@
 
   .modal-btn-cancel:hover {
     background: var(--border-default);
-    }
+  }
+
+  .modal-btn-cancel:active {
+    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+  }
+
+  .modal-btn-cancel:focus-visible {
+    outline: 2px solid var(--focus-blue);
+    outline-offset: 2px;
+  }
 
   /* Error crimson danger button */
   .modal-btn-danger {
@@ -637,6 +669,10 @@
   }
 
   .modal-btn-danger:hover { background: #9a2b2b; }
+
+  .modal-btn-danger:active {
+    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.18);
+  }
 
   .modal-btn-danger:focus-visible {
     outline: 2px solid var(--focus-blue);
