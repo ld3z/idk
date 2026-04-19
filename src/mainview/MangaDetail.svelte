@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { prepare, layout } from "@chenglou/pretext";
-  import type { MangaEntry, MangaJson, Chapter } from "../shared/types.ts";
+  import type { MangaEntry, MangaJson, Chapter, MangaDiff } from "../shared/types.ts";
   import { mergeChapterIntoExisting } from "../shared/chapterMerge.ts";
   import PhArrowLeft from "~icons/ph/arrow-left";
   import PhFloppyDisk from "~icons/ph/floppy-disk";
@@ -21,9 +21,10 @@
     rpc: any;
     entry: MangaEntry;
     onBack: () => void;
+    onSaved: (id: number, diff: MangaDiff) => void;
   }
 
-  let { rpc, entry, onBack }: Props = $props();
+  let { rpc, entry, onBack, onSaved }: Props = $props();
 
   function cloneChapter(chapter: Chapter): Chapter {
     return {
@@ -206,14 +207,54 @@
       JSON.stringify(chapters) !== JSON.stringify(orig.chapters);
   });
 
+  function computeDiff(before: MangaJson, after: MangaJson): MangaDiff {
+    const diff: MangaDiff = {
+      chaptersAdded: [],
+      chaptersRemoved: [],
+      chaptersModified: [],
+    };
+    if (before.title !== after.title) diff.title = { before: before.title, after: after.title };
+    if (before.description !== after.description) diff.description = { before: before.description, after: after.description };
+    if (before.author !== after.author) diff.author = { before: before.author, after: after.author };
+    if (before.artist !== after.artist) diff.artist = { before: before.artist, after: after.artist };
+    if (before.cover !== after.cover) diff.cover = { before: before.cover, after: after.cover };
+
+    const beforeKeys = new Set(Object.keys(before.chapters));
+    const afterKeys = new Set(Object.keys(after.chapters));
+
+    for (const k of afterKeys) {
+      if (!beforeKeys.has(k)) {
+        diff.chaptersAdded.push(k);
+      } else if (JSON.stringify(before.chapters[k]) !== JSON.stringify(after.chapters[k])) {
+        diff.chaptersModified.push(k);
+      }
+    }
+    for (const k of beforeKeys) {
+      if (!afterKeys.has(k)) diff.chaptersRemoved.push(k);
+    }
+
+    // Sort numerically where possible
+    const numSort = (a: string, b: string) => {
+      const na = parseFloat(a), nb = parseFloat(b);
+      return !isNaN(na) && !isNaN(nb) ? na - nb : a.localeCompare(b);
+    };
+    diff.chaptersAdded.sort(numSort);
+    diff.chaptersRemoved.sort(numSort);
+    diff.chaptersModified.sort(numSort);
+
+    return diff;
+  }
+
   async function saveMetadata() {
     saveStatus = "saving";
+    const before: MangaJson = { ...entry.manga, chapters: cloneChapters(entry.manga.chapters) };
     const manga: MangaJson = { title, description, author, artist, cover, chapters: cloneChapters(chapters) };
     try {
       await rpc.request.updateManga({ id: entry.id, manga });
       entry.manga = { ...manga, chapters: cloneChapters(manga.chapters) };
       hasChanges = false;
       saveStatus = "saved";
+      onSaved(entry.id, computeDiff(before, manga));
       setTimeout(() => { saveStatus = "idle"; }, 1800);
     } catch (e) {
       console.error("Failed to save:", e);

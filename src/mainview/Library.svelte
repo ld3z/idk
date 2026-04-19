@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { prepare, layout } from "@chenglou/pretext";
-  import type { MangaEntry } from "../shared/types.ts";
+  import type { MangaEntry, PendingSave } from "../shared/types.ts";
   import PhPlus from "~icons/ph/plus";
   import PhMagnifyingGlass from "~icons/ph/magnifying-glass";
   import PhTrash from "~icons/ph/trash";
@@ -15,9 +15,11 @@
   interface Props {
     rpc: any;
     onSelectManga: (entry: MangaEntry) => void;
+    pendingSaves: Map<number, PendingSave>;
+    onPushComplete: () => void;
   }
 
-  let { rpc, onSelectManga }: Props = $props();
+  let { rpc, onSelectManga, pendingSaves, onPushComplete }: Props = $props();
 
   let library = $state<MangaEntry[]>([]);
   let loading = $state(true);
@@ -30,22 +32,27 @@
   let pushResults = $state<PushResult[]>([]);
   let showPushModal = $state(false);
 
+  let hasPendingPush = $derived(pendingSaves.size > 0);
+
   async function pushAllToGithub() {
-    if (pushing || library.length === 0) return;
+    if (pushing || pendingSaves.size === 0) return;
     pushing = true;
     pushResults = [];
     showPushModal = true;
 
-    for (const entry of library) {
+    for (const [id, save] of pendingSaves) {
       try {
-        const res = await rpc.request.pushToGithub({ id: entry.id });
-        pushResults = [...pushResults, { id: entry.id, title: entry.manga.title, status: "ok", cubariUrl: res.cubariUrl }];
+        const res = await rpc.request.pushToGithub({ id });
+        pushResults = [...pushResults, { id, title: save.title, status: "ok", cubariUrl: res.cubariUrl }];
       } catch (e: any) {
-        pushResults = [...pushResults, { id: entry.id, title: entry.manga.title, status: "err", error: e.message ?? "Unknown error" }];
+        pushResults = [...pushResults, { id, title: save.title, status: "err", error: e.message ?? "Unknown error" }];
       }
     }
 
     pushing = false;
+    if (pushResults.every(r => r.status === "ok")) {
+      onPushComplete();
+    }
   }
 
   let filteredLibrary = $derived(
@@ -151,6 +158,7 @@
 <div class="library-page">
   <div class="page-header">
     <div class="header-text">
+      <p class="page-eyebrow">Collection</p>
       <h1 class="page-title">Library</h1>
       <p class="page-subtitle">{library.length} title{library.length !== 1 ? "s" : ""}</p>
     </div>
@@ -164,10 +172,12 @@
           bind:value={searchQuery}
         />
       </div>
-      <button class="github-btn" type="button" onclick={pushAllToGithub} disabled={pushing || library.length === 0} title="Push all JSONs to GitHub">
+      {#if hasPendingPush}
+      <button class="github-btn" type="button" onclick={pushAllToGithub} disabled={pushing} title="Push saved JSONs to GitHub">
         <PhGithubLogoFill class="btn-icon" />
         {pushing ? "Pushing..." : "Push to GitHub"}
       </button>
+      {/if}
       <button class="add-btn" type="button" onclick={addManga} disabled={addingManga}>
         <PhPlus class="btn-icon" />
         {addingManga ? "Selecting..." : "Add Manga"}
@@ -283,16 +293,18 @@
       <h2 class="modal-title">Push to GitHub</h2>
       <p class="modal-sub">
         {#if pushing}
-          Pushing {pushResults.length} / {library.length}…
+          Pushing {pushResults.length} / {pendingSaves.size}…
         {:else}
           {pushResults.filter(r => r.status === "ok").length} succeeded,
           {pushResults.filter(r => r.status === "err").length} failed.
         {/if}
       </p>
       <div class="push-list">
-        {#each library as entry}
-          {@const result = pushResults.find(r => r.id === entry.id)}
+        {#each [...pendingSaves.entries()] as [id, save]}
+          {@const entry = library.find(e => e.id === id)}
+          {@const result = pushResults.find(r => r.id === id)}
           {@const errText = result?.status === "err" ? result.error : ""}
+          {@const diff = save.diff}
           <div class="push-row" class:push-row--ok={result?.status === "ok"} class:push-row--err={result?.status === "err"}>
             <div class="push-row-status">
               {#if !result}
@@ -305,10 +317,7 @@
             </div>
             <div class="push-row-body">
               <div class="push-row-title-line">
-                <span
-                  class="push-row-title"
-                  style="min-height:{textHeight(entry.manga.title, PUSH_TITLE_WIDTH, PUSH_TITLE_FONT, PUSH_TITLE_LH)}px"
-                >{entry.manga.title}</span>
+                <span class="push-row-title">{save.title}</span>
                 {#if result?.status === "ok"}
                   <button class="push-cubari-btn" type="button" onclick={() => rpc.request.openExternal({ url: result.cubariUrl })} title="Open in Cubari">
                     <PhArrowSquareOut />
@@ -316,11 +325,71 @@
                   </button>
                 {/if}
               </div>
+
+              <!-- Diff summary -->
+              <div class="push-diff">
+                {#if diff.title}
+                  <div class="diff-field">
+                    <span class="diff-label">Title</span>
+                    <span class="diff-before">{diff.title.before || "—"}</span>
+                    <span class="diff-arrow">→</span>
+                    <span class="diff-after">{diff.title.after || "—"}</span>
+                  </div>
+                {/if}
+                {#if diff.author}
+                  <div class="diff-field">
+                    <span class="diff-label">Author</span>
+                    <span class="diff-before">{diff.author.before || "—"}</span>
+                    <span class="diff-arrow">→</span>
+                    <span class="diff-after">{diff.author.after || "—"}</span>
+                  </div>
+                {/if}
+                {#if diff.artist}
+                  <div class="diff-field">
+                    <span class="diff-label">Artist</span>
+                    <span class="diff-before">{diff.artist.before || "—"}</span>
+                    <span class="diff-arrow">→</span>
+                    <span class="diff-after">{diff.artist.after || "—"}</span>
+                  </div>
+                {/if}
+                {#if diff.cover}
+                  <div class="diff-field">
+                    <span class="diff-label">Cover</span>
+                    <span class="diff-before diff-url">{diff.cover.before || "—"}</span>
+                    <span class="diff-arrow">→</span>
+                    <span class="diff-after diff-url">{diff.cover.after || "—"}</span>
+                  </div>
+                {/if}
+                {#if diff.description}
+                  <div class="diff-field diff-field--block">
+                    <span class="diff-label">Description</span>
+                    <span class="diff-before diff-block">{diff.description.before || "—"}</span>
+                    <span class="diff-arrow diff-arrow--block">→</span>
+                    <span class="diff-after diff-block">{diff.description.after || "—"}</span>
+                  </div>
+                {/if}
+                {#if diff.chaptersAdded.length > 0}
+                  <div class="diff-chapters diff-chapters--added">
+                    <span class="diff-label">Added</span>
+                    <span class="diff-chapter-list">{diff.chaptersAdded.map(c => `ch.${c}`).join(", ")}</span>
+                  </div>
+                {/if}
+                {#if diff.chaptersRemoved.length > 0}
+                  <div class="diff-chapters diff-chapters--removed">
+                    <span class="diff-label">Removed</span>
+                    <span class="diff-chapter-list">{diff.chaptersRemoved.map(c => `ch.${c}`).join(", ")}</span>
+                  </div>
+                {/if}
+                {#if diff.chaptersModified.length > 0}
+                  <div class="diff-chapters diff-chapters--modified">
+                    <span class="diff-label">Modified</span>
+                    <span class="diff-chapter-list">{diff.chaptersModified.map(c => `ch.${c}`).join(", ")}</span>
+                  </div>
+                {/if}
+              </div>
+
               {#if result?.status === "err"}
-                <p
-                  class="push-row-error"
-                  style="min-height:{textHeight(errText, PUSH_ERROR_WIDTH, PUSH_ERROR_FONT, PUSH_ERROR_LH)}px"
-                >{errText}</p>
+                <p class="push-row-error">{errText}</p>
               {/if}
             </div>
           </div>
@@ -339,7 +408,7 @@
   .library-page {
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: 36px;
   }
 
   .page-header {
@@ -350,29 +419,40 @@
     gap: 16px;
   }
 
+  .page-eyebrow {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 8px;
+  }
+
   /* GitHub push button */
   .github-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 16px;
-    background: var(--bg-surface);
-    border: none;
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-family: var(--sans);
-    font-size: 0.8rem;
-    font-weight: 500;
+    padding: 7px 16px;
+    background: var(--btn-bg);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill);
+    color: var(--btn-text);
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     cursor: pointer;
-    box-shadow: 0px 0px 0px 1px var(--border-strong);
-    transition-property: background, box-shadow, scale;
+    transition-property: background, border-color, scale;
     transition-duration: 0.15s;
     transition-timing-function: ease;
   }
 
   .github-btn:hover {
-    background: var(--bg-elevated);
-    box-shadow: 0px 0px 0px 1px var(--text-muted);
+    background: var(--btn-bg-hover);
+    border-color: var(--border-strong);
   }
 
   .github-btn:active:not(:disabled) {
@@ -380,12 +460,12 @@
   }
 
   .github-btn:focus-visible {
-    outline: 2px solid var(--focus-blue);
+    outline: 1px solid var(--focus-ring);
     outline-offset: 2px;
   }
 
   .github-btn:disabled {
-    opacity: 0.45;
+    opacity: 0.35;
     cursor: default;
     pointer-events: none;
   }
@@ -462,80 +542,24 @@
     gap: 6px;
   }
 
-  .push-row-title-line {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  .push-row-title {
-    flex: 1;
-    font-size: 0.82rem;
-    font-weight: 500;
-    font-family: var(--serif);
-    color: var(--text-primary);
-    line-height: 18px;
-    word-break: break-word;
-    min-width: 0;
-  }
-
-  .push-row-error {
-    font-size: 0.72rem;
-    color: var(--accent-rose);
-    font-family: var(--mono);
-    word-break: break-word;
-    white-space: pre-wrap;
-    line-height: 17px;
-    margin: 0;
-  }
-
-  .push-cubari-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 10px;
-    border: none;
-    border-radius: 999px;
-    background: var(--accent-green-light);
-    color: var(--accent-green);
-    font-family: var(--mono);
-    font-size: 0.62rem;
-    font-weight: 600;
-    cursor: pointer;
-    flex-shrink: 0;
-    box-shadow: 0px 0px 0px 1px color-mix(in srgb, var(--accent-green) 35%, transparent);
-  }
-
-  .push-cubari-btn:hover {
-    background: var(--accent-green);
-    color: #faf9f5;
-  }
-
-  .push-cubari-btn:focus-visible {
-    outline: 2px solid var(--focus-blue);
-    outline-offset: 2px;
-  }
-
-  .push-cubari-btn :global(svg) { font-size: 0.72rem; }
-
   .page-title {
-    font-size: 2.3rem;
-    font-weight: 500;
-    font-family: var(--serif);
+    font-size: 2rem;
+    font-weight: 400;
+    font-family: var(--display);
     color: var(--text-primary);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
     margin: 0;
-    line-height: 1.1;
+    line-height: 1.05;
     text-wrap: balance;
   }
 
   .page-subtitle {
-    font-size: 0.82rem;
+    font-size: 0.72rem;
     color: var(--text-muted);
     margin: 6px 0 0;
     font-family: var(--mono);
     font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
   }
 
   .header-actions {
@@ -553,67 +577,68 @@
   :global(.search-icon) {
     position: absolute;
     left: 10px;
-    font-size: 0.95rem;
-    color: var(--text-muted);
+    font-size: 0.85rem;
+    color: var(--text-faint);
     pointer-events: none;
   }
 
   .search-input {
-    padding: 8px 12px 8px 32px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--bg-surface);
+    padding: 7px 12px 7px 30px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill);
+    background: var(--bg-elevated);
     color: var(--text-primary);
     font-family: var(--sans);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     width: 180px;
     outline: none;
-    transition-property: box-shadow;
+    transition-property: border-color, background;
     transition-duration: 0.15s;
     transition-timing-function: ease;
-    box-shadow: 0px 0px 0px 1px var(--border-default);
   }
 
-  .search-input::placeholder { color: var(--text-muted); }
+  .search-input::placeholder { color: var(--text-faint); }
 
   .search-input:focus {
-    box-shadow: 0px 0px 0px 1px var(--focus-blue), 0px 0px 0px 4px rgba(56, 152, 236, 0.15);
+    border-color: var(--border-mist);
+    background: var(--bg-surface);
   }
 
-  /* Terracotta brand button */
+  /* Primary pill button */
   .add-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 16px;
-    background: var(--accent-brand);
-    border: none;
-    border-radius: var(--radius-sm);
-    color: #faf9f5;
-    font-family: var(--sans);
-    font-size: 0.8rem;
-    font-weight: 500;
+    padding: 7px 18px;
+    background: var(--text-primary);
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    color: var(--bg-base);
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     cursor: pointer;
-    transition-property: background, scale;
+    transition-property: opacity, scale;
     transition-duration: 0.15s;
     transition-timing-function: ease;
-    box-shadow: 0px 0px 0px 1px var(--accent-brand);
   }
 
-  .add-btn:hover { background: var(--accent-brand-hover); }
+  .add-btn:hover { opacity: 0.88; }
 
   .add-btn:active:not(:disabled) {
     scale: 0.96;
   }
 
   .add-btn:focus-visible {
-    outline: 2px solid var(--focus-blue);
+    outline: 1px solid var(--focus-ring);
     outline-offset: 2px;
   }
 
-  .add-btn:disabled { opacity: 0.6; cursor: default; pointer-events: none; }
+  .add-btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
 
-  :global(.btn-icon) { font-size: 0.95rem; }
+  :global(.btn-icon) { font-size: 0.85rem; }
 
   /* Empty state */
   .empty-state {
@@ -622,28 +647,28 @@
     align-items: center;
     justify-content: center;
     gap: 12px;
-    padding: 80px 20px;
+    padding: 100px 20px;
     text-align: center;
   }
 
   :global(.empty-icon) {
-    font-size: 3rem;
-    color: var(--text-muted);
-    opacity: 0.4;
+    font-size: 2.5rem;
+    color: var(--text-faint);
   }
 
   .empty-title {
-    font-size: 1.3rem;
-    font-weight: 500;
-    font-family: var(--serif);
-    color: var(--text-primary);
+    font-size: 1.4rem;
+    font-weight: 400;
+    font-family: var(--display);
+    color: var(--text-secondary);
     margin: 0;
     line-height: 1.2;
+    letter-spacing: -0.02em;
     text-wrap: balance;
   }
 
   .empty-text {
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     color: var(--text-muted);
     margin: 0;
     line-height: 1.6;
@@ -653,8 +678,8 @@
   /* Cards grid */
   .cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 240px));
-    gap: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 220px));
+    gap: 14px;
   }
 
   .manga-card {
@@ -662,23 +687,23 @@
     background: var(--bg-surface);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    transition-property: box-shadow, transform;
+    border: 1px solid var(--border-subtle);
+    transition-property: border-color, transform;
     transition-duration: 0.2s;
     transition-timing-function: ease;
     will-change: transform;
   }
 
   .manga-card:hover {
-    box-shadow: var(--shadow-md);
+    border-color: var(--border-default);
     transform: translateY(-2px);
   }
 
   .manga-card:focus-within {
-    box-shadow: 0px 0px 0px 1px var(--accent-brand), 0px 0px 0px 4px rgba(201, 100, 66, 0.12);
+    border-color: var(--border-mist);
   }
 
-  .manga-card.unavailable { opacity: 0.6; }
+  .manga-card.unavailable { opacity: 0.5; }
 
   .card-clickable {
     display: block;
@@ -714,20 +739,20 @@
     height: 100%;
     object-fit: cover;
     object-position: center top;
-    outline: 1px solid rgba(0, 0, 0, 0.1);
+    outline: 1px solid rgba(255, 255, 255, 0.1);
     outline-offset: -1px;
   }
 
-  :global(.dark) .card-cover-img {
-    outline-color: rgba(255, 255, 255, 0.1);
+  :global(.light) .card-cover-img {
+    outline-color: rgba(0, 0, 0, 0.1);
   }
 
   .card-initial {
     font-size: 2.5rem;
-    font-weight: 500;
-    font-family: var(--serif);
-    color: var(--text-muted);
-    opacity: 0.35;
+    font-weight: 400;
+    font-family: var(--display);
+    color: var(--text-faint);
+    letter-spacing: -0.02em;
   }
 
   .card-unavailable-badge {
@@ -738,23 +763,27 @@
     align-items: center;
     gap: 4px;
     padding: 3px 8px;
-    background: var(--accent-amber-light);
+    background: rgba(154, 122, 58, 0.15);
     color: var(--accent-amber);
-    font-size: 0.65rem;
-    font-weight: 500;
-    border-radius: 999px;
+    font-size: 0.6rem;
+    font-weight: 400;
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(154, 122, 58, 0.3);
   }
 
-  .card-unavailable-badge :global(svg) { font-size: 0.75rem; }
+  .card-unavailable-badge :global(svg) { font-size: 0.7rem; }
 
-  .card-body { padding: 14px 16px 16px; }
+  .card-body { padding: 12px 14px 14px; }
 
   .card-title {
-    font-size: 0.9rem;
-    font-weight: 500;
-    font-family: var(--serif);
+    font-size: 0.85rem;
+    font-weight: 400;
+    font-family: var(--display);
     color: var(--text-primary);
-    margin: 0 0 2px;
+    margin: 0 0 3px;
     letter-spacing: -0.01em;
     line-height: 17px;
     overflow: hidden;
@@ -763,7 +792,7 @@
   }
 
   .card-author {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
     margin: 0 0 10px;
     line-height: 15px;
@@ -780,19 +809,17 @@
 
   .card-chapters {
     font-family: var(--mono);
-    font-size: 0.7rem;
-    color: var(--accent-brand);
-    font-weight: 500;
-    padding: 2px 8px;
-    background: var(--accent-brand-light);
-    border-radius: 999px;
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    font-weight: 400;
+    letter-spacing: 0.06em;
     font-variant-numeric: tabular-nums;
   }
 
   .card-updated {
     font-family: var(--mono);
-    font-size: 0.65rem;
-    color: var(--text-muted);
+    font-size: 0.6rem;
+    color: var(--text-faint);
     font-variant-numeric: tabular-nums;
   }
 
@@ -805,15 +832,14 @@
     height: 40px;
     padding: 0;
     border-radius: 50%;
-    background: var(--bg-surface);
-    border: none;
-    color: var(--text-secondary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    color: var(--text-muted);
     cursor: pointer;
     display: grid;
     place-items: center;
     opacity: 0;
-    box-shadow: var(--shadow-sm);
-    transition-property: opacity, color, background, scale;
+    transition-property: opacity, color, background, border-color, scale;
     transition-duration: 0.15s;
     transition-timing-function: ease;
   }
@@ -824,15 +850,13 @@
   }
 
   @media (hover: none) {
-    .card-remove-btn {
-      opacity: 0.92;
-    }
+    .card-remove-btn { opacity: 0.92; }
   }
 
   .card-remove-btn:hover {
-    color: #faf9f5;
-    background: var(--accent-rose);
-    box-shadow: 0px 0px 0px 1px var(--accent-rose);
+    color: #d47070;
+    background: rgba(154, 58, 58, 0.15);
+    border-color: rgba(154, 58, 58, 0.4);
   }
 
   .card-remove-btn:active {
@@ -840,13 +864,13 @@
   }
 
   .card-remove-btn:hover :global(svg) {
-    color: #faf9f5;
+    color: #d47070;
     opacity: 1;
   }
 
   .card-remove-btn:focus-visible {
     opacity: 1;
-    outline: 2px solid var(--focus-blue);
+    outline: 1px solid var(--focus-ring);
     outline-offset: 2px;
   }
 
@@ -860,8 +884,8 @@
   .card-remove-btn-inner :global(svg),
   :global(.card-trash-icon) {
     display: block;
-    width: 17px;
-    height: 17px;
+    width: 15px;
+    height: 15px;
     flex-shrink: 0;
     color: inherit;
     opacity: 1;
@@ -871,137 +895,384 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(20, 20, 19, 0.45);
+    background: rgba(10, 10, 9, 0.7);
     display: grid;
     place-items: center;
     z-index: 50;
     padding: 20px;
+    backdrop-filter: blur(4px);
   }
 
   .modal {
-    background: var(--bg-surface);
+    background: var(--bg-elevated);
     border-radius: var(--radius-lg);
     padding: 28px;
     max-width: 480px;
     width: 100%;
+    border: 1px solid var(--border-mist);
     box-shadow: var(--shadow-lg);
   }
 
   .modal-title {
-    font-size: 1.25rem;
-    font-weight: 500;
-    font-family: var(--serif);
+    font-size: 1.15rem;
+    font-weight: 400;
+    font-family: var(--display);
     color: var(--text-primary);
     margin: 0 0 10px;
     line-height: 1.2;
+    letter-spacing: -0.02em;
     text-wrap: balance;
   }
 
   .modal-message {
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     color: var(--text-secondary);
-    line-height: 1.6;
-    margin: 0 0 18px;
+    line-height: 1.65;
+    margin: 0 0 20px;
     text-wrap: pretty;
   }
 
   .modal-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     justify-content: flex-end;
   }
 
-  /* Warm Sand cancel button */
   .modal-btn-cancel {
-    padding: 9px 20px;
-    background: var(--bg-elevated);
-    border: none;
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-family: var(--sans);
-    font-size: 0.85rem;
-    font-weight: 500;
+    padding: 8px 18px;
+    background: var(--btn-bg);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill);
+    color: var(--btn-text);
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     cursor: pointer;
-    box-shadow: 0px 0px 0px 1px var(--border-strong);
-    transition-property: background, scale;
+    transition-property: background, border-color, scale;
     transition-duration: 0.15s;
     transition-timing-function: ease;
   }
 
   .modal-btn-cancel:hover {
-    background: var(--border-default);
+    background: var(--btn-bg-hover);
+    border-color: var(--border-strong);
   }
 
-  .modal-btn-cancel:active {
-    scale: 0.96;
-  }
+  .modal-btn-cancel:active { scale: 0.96; }
 
   .modal-btn-cancel:focus-visible {
-    outline: 2px solid var(--focus-blue);
+    outline: 1px solid var(--focus-ring);
     outline-offset: 2px;
   }
 
-  /* Error crimson danger button */
   .modal-btn-danger {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 9px 20px;
-    background: var(--accent-rose);
-    border: none;
-    border-radius: var(--radius-sm);
-    color: #faf9f5;
-    font-family: var(--sans);
-    font-size: 0.85rem;
-    font-weight: 500;
+    gap: 6px;
+    padding: 8px 18px;
+    background: rgba(154, 58, 58, 0.15);
+    border: 1px solid rgba(154, 58, 58, 0.4);
+    border-radius: var(--radius-pill);
+    color: #d47070;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     line-height: 1;
     cursor: pointer;
-    box-shadow: 0px 0px 0px 1px var(--accent-rose);
-    transition-property: background, scale;
+    transition-property: background, border-color, scale;
     transition-duration: 0.15s;
     transition-timing-function: ease;
   }
 
-  .modal-btn-danger:hover { background: #9a2b2b; }
-
-  .modal-btn-danger:active {
-    scale: 0.96;
+  .modal-btn-danger:hover {
+    background: rgba(154, 58, 58, 0.25);
+    border-color: rgba(154, 58, 58, 0.6);
   }
 
+  .modal-btn-danger:active { scale: 0.96; }
+
   .modal-btn-danger:focus-visible {
-    outline: 2px solid var(--focus-blue);
+    outline: 1px solid var(--focus-ring);
     outline-offset: 2px;
   }
 
   .modal-btn-danger :global(svg),
   :global(.modal-trash-icon) {
     display: block;
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     flex-shrink: 0;
-    color: #faf9f5;
+    color: inherit;
     opacity: 1;
   }
 
   .modal-icon-wrap {
-    width: 52px;
-    height: 52px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    background: var(--accent-rose-light);
+    background: rgba(154, 58, 58, 0.1);
+    border: 1px solid rgba(154, 58, 58, 0.25);
     display: grid;
     place-items: center;
     margin: 0 auto 18px;
   }
 
   .modal-icon-wrap :global(svg) {
-    font-size: 1.5rem;
-    color: var(--accent-rose);
+    font-size: 1.2rem;
+    color: #d47070;
   }
+
+  /* Push modal */
+  .modal--push {
+    max-width: 640px;
+    text-align: left;
+  }
+
+  .modal-sub {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin: 4px 0 16px;
+    font-family: var(--mono);
+    letter-spacing: 0.06em;
+  }
+
+  .push-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 420px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+  }
+
+  .push-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    min-width: 0;
+  }
+
+  .push-row--ok {
+    border-color: rgba(90, 138, 94, 0.35);
+    background: rgba(90, 138, 94, 0.06);
+  }
+
+  .push-row--err {
+    border-color: rgba(154, 58, 58, 0.35);
+    background: rgba(154, 58, 58, 0.06);
+  }
+
+  .push-row-status {
+    flex-shrink: 0;
+    width: 18px;
+    display: grid;
+    place-items: start center;
+    padding-top: 2px;
+  }
+
+  .push-dot--pending {
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border-strong);
+    margin-top: 5px;
+  }
+
+  :global(.push-icon) { font-size: 0.9rem; }
+  :global(.push-icon--ok) { color: var(--accent-green); }
+  :global(.push-icon--err) { color: #d47070; }
+
+  .push-row-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .push-row-title-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .push-row-title {
+    flex: 1;
+    font-size: 0.8rem;
+    font-weight: 400;
+    font-family: var(--display);
+    color: var(--text-primary);
+    line-height: 18px;
+    word-break: break-word;
+    min-width: 0;
+  }
+
+  .push-row-error {
+    font-size: 0.65rem;
+    color: #d47070;
+    font-family: var(--mono);
+    word-break: break-word;
+    white-space: pre-wrap;
+    line-height: 17px;
+    margin: 0;
+  }
+
+  /* Diff display */
+  .push-diff {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .diff-field {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+
+  .diff-field--block {
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .diff-label {
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    flex-shrink: 0;
+    min-width: 56px;
+  }
+
+  .diff-before {
+    color: var(--text-muted);
+    font-family: var(--sans);
+    text-decoration: line-through;
+    text-decoration-color: rgba(212, 112, 112, 0.5);
+    word-break: break-word;
+  }
+
+  .diff-after {
+    color: var(--text-primary);
+    font-family: var(--sans);
+    word-break: break-word;
+  }
+
+  .diff-arrow {
+    color: var(--text-faint);
+    font-size: 0.6rem;
+    flex-shrink: 0;
+  }
+
+  .diff-arrow--block {
+    display: none;
+  }
+
+  .diff-url {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+  }
+
+  .diff-block {
+    font-size: 0.65rem;
+    line-height: 1.5;
+    padding: 4px 8px;
+    border-radius: var(--radius-xs);
+    max-height: 60px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+
+  .diff-before.diff-block {
+    background: rgba(154, 58, 58, 0.08);
+    border: 1px solid rgba(154, 58, 58, 0.2);
+  }
+
+  .diff-after.diff-block {
+    background: rgba(90, 138, 94, 0.08);
+    border: 1px solid rgba(90, 138, 94, 0.2);
+  }
+
+  .diff-chapters {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 0.65rem;
+    flex-wrap: wrap;
+  }
+
+  .diff-chapter-list {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.02em;
+    word-break: break-word;
+  }
+
+  .diff-chapters--added .diff-label { color: var(--accent-green); }
+  .diff-chapters--added .diff-chapter-list { color: var(--accent-green); }
+
+  .diff-chapters--removed .diff-label { color: #d47070; }
+  .diff-chapters--removed .diff-chapter-list { color: #d47070; }
+
+  .diff-chapters--modified .diff-label { color: var(--text-muted); }
+  .diff-chapters--modified .diff-chapter-list { color: var(--text-secondary); }
+
+  .push-cubari-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: 1px solid rgba(90, 138, 94, 0.35);
+    border-radius: var(--radius-pill);
+    background: rgba(90, 138, 94, 0.08);
+    color: var(--accent-green);
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
+  }
+
+  .push-cubari-btn:hover { background: rgba(90, 138, 94, 0.16); }
+  .push-cubari-btn:active { scale: 0.96; }
+
+  .push-cubari-btn:focus-visible {
+    outline: 1px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .push-cubari-btn :global(svg) { font-size: 0.65rem; }
 
   @media (max-width: 640px) {
     .cards-grid {
-      grid-template-columns: repeat(auto-fill, minmax(140px, 200px));
+      grid-template-columns: repeat(auto-fill, minmax(130px, 180px));
     }
 
     .header-actions {

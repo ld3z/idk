@@ -17,7 +17,7 @@
 }
 
 html {
-	color-scheme: light;
+	color-scheme: dark;
 }
 
 body {
@@ -25,6 +25,7 @@ body {
 	padding: 0;
 	font-family: "DM Sans", Arial, sans-serif;
 	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 	text-rendering: optimizeLegibility;
 	background: var(--bg-base);
 	color: var(--text-primary);
@@ -37,7 +38,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
 	font: inherit;
 }
 

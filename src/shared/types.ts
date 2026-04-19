@@ -23,3 +23,19 @@ export type MangaEntry = {
 	available: boolean;
 	chapterCount: number;
 };
+
+export type MangaDiff = {
+	title?: { before: string; after: string };
+	description?: { before: string; after: string };
+	author?: { before: string; after: string };
+	artist?: { before: string; after: string };
+	cover?: { before: string; after: string };
+	chaptersAdded: string[];
+	chaptersRemoved: string[];
+	chaptersModified: string[];
+};
+
+export type PendingSave = {
+	title: string;
+	diff: MangaDiff;
+};
