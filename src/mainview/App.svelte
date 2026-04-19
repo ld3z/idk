@@ -199,10 +199,19 @@
     --radius-lg: 16px;
     --radius-xl: 24px;
 
-    /* Shadows — ring-based warm system */
-    --shadow-sm: 0px 0px 0px 1px #e8e6dc;
-    --shadow-md: 0px 0px 0px 1px #d1cfc5, rgba(0, 0, 0, 0.05) 0px 4px 24px;
-    --shadow-lg: 0px 0px 0px 1px #d1cfc5, rgba(0, 0, 0, 0.05) 0px 8px 32px;
+    /* Shadows — layered transparent system */
+    --shadow-sm:
+      0px 0px 0px 1px rgba(0, 0, 0, 0.06),
+      0px 1px 2px -1px rgba(0, 0, 0, 0.06),
+      0px 2px 4px 0px rgba(0, 0, 0, 0.04);
+    --shadow-md:
+      0px 0px 0px 1px rgba(0, 0, 0, 0.08),
+      0px 1px 2px -1px rgba(0, 0, 0, 0.08),
+      0px 4px 16px 0px rgba(0, 0, 0, 0.06);
+    --shadow-lg:
+      0px 0px 0px 1px rgba(0, 0, 0, 0.08),
+      0px 2px 4px -1px rgba(0, 0, 0, 0.08),
+      0px 8px 32px 0px rgba(0, 0, 0, 0.10);
 
     /* Typography */
     --serif: "Newsreader", Georgia, "Times New Roman", serif;
@@ -242,9 +251,13 @@
     --accent-rose: #d44545;
     --accent-rose-light: rgba(212, 69, 69, 0.12);
 
-    --shadow-sm: 0px 0px 0px 1px #30302e;
-    --shadow-md: 0px 0px 0px 1px #3d3d3a, rgba(0, 0, 0, 0.25) 0px 4px 24px;
-    --shadow-lg: 0px 0px 0px 1px #3d3d3a, rgba(0, 0, 0, 0.35) 0px 8px 32px;
+    --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-md:
+      0 0 0 1px rgba(255, 255, 255, 0.08),
+      0px 4px 16px 0px rgba(0, 0, 0, 0.35);
+    --shadow-lg:
+      0 0 0 1px rgba(255, 255, 255, 0.08),
+      0px 8px 32px 0px rgba(0, 0, 0, 0.45);
   }
 
   .app-root {
@@ -326,12 +339,14 @@
     font-weight: 500;
     cursor: pointer;
     border-radius: var(--radius-sm);
-    transition: all 0.15s ease;
+    transition-property: background, color, box-shadow, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
     position: relative;
   }
 
   .nav-link:active {
-    transform: scale(0.97);
+    scale: 0.96;
   }
 
   .nav-link:focus-visible {
@@ -361,8 +376,8 @@
   }
 
   .theme-toggle {
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     border-radius: var(--radius-sm);
     background: transparent;
     border: none;
@@ -370,7 +385,9 @@
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: all 0.15s ease;
+    transition-property: background, color, box-shadow, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
     box-shadow: 0px 0px 0px 1px transparent;
   }
 
@@ -381,7 +398,7 @@
   }
 
   .theme-toggle:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+    scale: 0.96;
   }
 
   .theme-toggle:focus-visible {
@@ -401,6 +418,7 @@
     background: var(--bg-surface);
     border-radius: var(--radius-sm);
     box-shadow: 0px 0px 0px 1px var(--border-subtle);
+    font-variant-numeric: tabular-nums;
   }
 
   /* Main content */

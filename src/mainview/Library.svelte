@@ -342,6 +342,14 @@
     gap: 28px;
   }
 
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
   /* GitHub push button */
   .github-btn {
     display: flex;
@@ -357,12 +365,18 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--border-strong);
-    transition: background 0.15s ease, box-shadow 0.15s ease;
+    transition-property: background, box-shadow, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .github-btn:hover {
     background: var(--bg-elevated);
     box-shadow: 0px 0px 0px 1px var(--text-muted);
+  }
+
+  .github-btn:active:not(:disabled) {
+    scale: 0.96;
   }
 
   .github-btn:focus-visible {
@@ -513,6 +527,7 @@
     letter-spacing: -0.02em;
     margin: 0;
     line-height: 1.1;
+    text-wrap: balance;
   }
 
   .page-subtitle {
@@ -520,6 +535,7 @@
     color: var(--text-muted);
     margin: 6px 0 0;
     font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
   }
 
   .header-actions {
@@ -552,7 +568,9 @@
     font-size: 0.8rem;
     width: 180px;
     outline: none;
-    transition: box-shadow 0.15s ease;
+    transition-property: box-shadow;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
     box-shadow: 0px 0px 0px 1px var(--border-default);
   }
 
@@ -576,19 +594,21 @@
     font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
     box-shadow: 0px 0px 0px 1px var(--accent-brand);
   }
 
   .add-btn:hover { background: var(--accent-brand-hover); }
 
+  .add-btn:active:not(:disabled) {
+    scale: 0.96;
+  }
+
   .add-btn:focus-visible {
     outline: 2px solid var(--focus-blue);
     outline-offset: 2px;
-  }
-
-  .add-btn:active:not(:disabled) {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
   }
 
   .add-btn:disabled { opacity: 0.6; cursor: default; pointer-events: none; }
@@ -619,6 +639,7 @@
     color: var(--text-primary);
     margin: 0;
     line-height: 1.2;
+    text-wrap: balance;
   }
 
   .empty-text {
@@ -626,6 +647,7 @@
     color: var(--text-muted);
     margin: 0;
     line-height: 1.6;
+    text-wrap: pretty;
   }
 
   /* Cards grid */
@@ -641,7 +663,10 @@
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    transition-property: box-shadow, transform;
+    transition-duration: 0.2s;
+    transition-timing-function: ease;
+    will-change: transform;
   }
 
   .manga-card:hover {
@@ -689,6 +714,12 @@
     height: 100%;
     object-fit: cover;
     object-position: center top;
+    outline: 1px solid rgba(0, 0, 0, 0.1);
+    outline-offset: -1px;
+  }
+
+  :global(.dark) .card-cover-img {
+    outline-color: rgba(255, 255, 255, 0.1);
   }
 
   .card-initial {
@@ -728,6 +759,7 @@
     line-height: 17px;
     overflow: hidden;
     word-break: break-word;
+    text-wrap: pretty;
   }
 
   .card-author {
@@ -737,6 +769,7 @@
     line-height: 15px;
     overflow: hidden;
     word-break: break-word;
+    text-wrap: pretty;
   }
 
   .card-meta {
@@ -753,21 +786,23 @@
     padding: 2px 8px;
     background: var(--accent-brand-light);
     border-radius: 999px;
+    font-variant-numeric: tabular-nums;
   }
 
   .card-updated {
     font-family: var(--mono);
     font-size: 0.65rem;
     color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
   }
 
   .card-remove-btn {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 8px;
+    right: 8px;
     z-index: 4;
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     padding: 0;
     border-radius: 50%;
     background: var(--bg-surface);
@@ -778,7 +813,9 @@
     place-items: center;
     opacity: 0;
     box-shadow: var(--shadow-sm);
-    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+    transition-property: opacity, color, background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .manga-card:hover .card-remove-btn,
@@ -795,12 +832,11 @@
   .card-remove-btn:hover {
     color: #faf9f5;
     background: var(--accent-rose);
-    transform: scale(1.04);
     box-shadow: 0px 0px 0px 1px var(--accent-rose);
   }
 
   .card-remove-btn:active {
-    transform: scale(0.96);
+    scale: 0.96;
   }
 
   .card-remove-btn:hover :global(svg) {
@@ -858,6 +894,7 @@
     color: var(--text-primary);
     margin: 0 0 10px;
     line-height: 1.2;
+    text-wrap: balance;
   }
 
   .modal-message {
@@ -865,6 +902,7 @@
     color: var(--text-secondary);
     line-height: 1.6;
     margin: 0 0 18px;
+    text-wrap: pretty;
   }
 
   .modal-actions {
@@ -885,7 +923,9 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--border-strong);
-    transition: background 0.15s ease;
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .modal-btn-cancel:hover {
@@ -893,7 +933,7 @@
   }
 
   .modal-btn-cancel:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+    scale: 0.96;
   }
 
   .modal-btn-cancel:focus-visible {
@@ -918,13 +958,15 @@
     line-height: 1;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--accent-rose);
-    transition: background 0.15s ease;
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .modal-btn-danger:hover { background: #9a2b2b; }
 
   .modal-btn-danger:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.18);
+    scale: 0.96;
   }
 
   .modal-btn-danger:focus-visible {

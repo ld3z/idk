@@ -409,6 +409,7 @@
     letter-spacing: -0.02em;
     margin: 0;
     line-height: 1.1;
+    text-wrap: balance;
   }
 
   .page-subtitle {
@@ -416,6 +417,7 @@
     color: var(--text-muted);
     margin: 6px 0 0;
     line-height: 1.6;
+    text-wrap: pretty;
   }
 
   .header-actions {
@@ -439,7 +441,9 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--border-strong);
-    transition: background 0.15s ease;
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .action-btn-outline:hover {
@@ -447,7 +451,7 @@
   }
 
   .action-btn-outline:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+    scale: 0.96;
   }
 
   .action-btn-outline:focus-visible {
@@ -474,7 +478,9 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--accent-brand);
-    transition: background 0.15s ease;
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .save-btn:hover {
@@ -482,7 +488,7 @@
   }
 
   .save-btn:active:not(:disabled) {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.18);
+    scale: 0.96;
   }
 
   .save-btn:focus-visible {
@@ -572,12 +578,14 @@
     margin: 0;
     line-height: 1.2;
     letter-spacing: -0.01em;
+    text-wrap: balance;
   }
 
   .card-desc {
     font-size: 0.75rem;
     color: var(--text-muted);
     margin: 2px 0 0;
+    text-wrap: pretty;
   }
 
   .card-content {
@@ -626,7 +634,9 @@
     font-size: 0.88rem;
     outline: none;
     box-shadow: 0px 0px 0px 1px var(--border-default);
-    transition: box-shadow 0.15s ease;
+    transition-property: box-shadow;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .field-input::placeholder {
@@ -664,7 +674,13 @@
     display: grid;
     place-items: center;
     border-radius: 4px;
-    transition: color 0.15s ease;
+    transition-property: color;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
+    /* Ensure 40×40 hit area */
+    width: 40px;
+    height: 40px;
+    right: 2px;
   }
 
   .input-addon:hover {
@@ -718,7 +734,9 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--accent-rose);
-    transition: background 0.15s ease;
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
     white-space: nowrap;
   }
 
@@ -727,7 +745,7 @@
   }
 
   .btn-danger:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(181, 51, 51, 0.3);
+    scale: 0.96;
   }
 
   .btn-danger:focus-visible {
@@ -803,6 +821,7 @@
     color: var(--text-primary);
     margin: 0 0 10px;
     line-height: 1.2;
+    text-wrap: balance;
   }
 
   .modal-message {
@@ -810,6 +829,7 @@
     color: var(--text-secondary);
     line-height: 1.6;
     margin: 0 0 22px;
+    text-wrap: pretty;
   }
 
   .modal-actions {
@@ -829,6 +849,9 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--border-strong);
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .modal-btn-cancel:hover {
@@ -836,7 +859,7 @@
   }
 
   .modal-btn-cancel:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+    scale: 0.96;
   }
 
   .modal-btn-cancel:focus-visible {
@@ -858,7 +881,9 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--accent-rose);
-    transition: background 0.15s ease;
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .modal-btn-confirm:hover {
@@ -866,7 +891,7 @@
   }
 
   .modal-btn-confirm:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.18);
+    scale: 0.96;
   }
 
   .modal-btn-confirm:focus-visible {

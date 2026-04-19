@@ -1039,7 +1039,9 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--border-default);
-    transition: background 0.15s ease, color 0.15s ease;
+    transition-property: background, color, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .back-btn:hover {
@@ -1048,7 +1050,7 @@
   }
 
   .back-btn:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+    scale: 0.96;
   }
 
   .back-btn:focus-visible {
@@ -1097,13 +1099,15 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--accent-brand);
-    transition: background 0.15s ease;
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .save-btn:hover { background: var(--accent-brand-hover); }
 
   .save-btn:active:not(:disabled) {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.18);
+    scale: 0.96;
   }
 
   .save-btn:disabled {
@@ -1156,6 +1160,7 @@
     color: var(--text-primary);
     margin: 0;
     letter-spacing: -0.01em;
+    text-wrap: balance;
   }
 
   .chapter-count {
@@ -1167,6 +1172,7 @@
     background: var(--accent-brand-light);
     border-radius: 999px;
     margin-left: 2px;
+    font-variant-numeric: tabular-nums;
   }
 
   .sidebar-groups {
@@ -1244,11 +1250,18 @@
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
+    transition-property: background, border-color, color, scale;
+    transition-duration: 0.12s;
+    transition-timing-function: ease;
   }
 
   .chapter-pill:hover {
     background: var(--bg-hover);
     border-color: var(--border-subtle);
+  }
+
+  .chapter-pill:active {
+    scale: 0.97;
   }
 
   .chapter-pill:focus-visible {
@@ -1301,6 +1314,7 @@
     border-radius: 999px;
     flex-shrink: 0;
     margin-left: auto;
+    font-variant-numeric: tabular-nums;
   }
 
   /* Big plus button */
@@ -1318,6 +1332,9 @@
     cursor: pointer;
     font-size: 1.4rem;
     flex-shrink: 0;
+    transition-property: background, color, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .sidebar-plus :global(svg) {
@@ -1330,7 +1347,7 @@
   }
 
   .sidebar-plus:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+    scale: 0.96;
   }
 
   /* ── Right main panel ── */
@@ -1362,6 +1379,12 @@
     border-radius: var(--radius-md);
     object-fit: cover;
     aspect-ratio: 2/3;
+    outline: 1px solid rgba(0, 0, 0, 0.1);
+    outline-offset: -1px;
+  }
+
+  :global(.dark) .cover-img {
+    outline-color: rgba(255, 255, 255, 0.1);
   }
 
   .cover-placeholder {
@@ -1413,7 +1436,9 @@
     font-size: 0.85rem;
     outline: none;
     box-shadow: 0px 0px 0px 1px var(--border-default);
-    transition: box-shadow 0.15s ease;
+    transition-property: box-shadow;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .field-input::placeholder { color: var(--text-muted); }
@@ -1438,7 +1463,9 @@
     outline: none;
     resize: vertical;
     box-shadow: 0px 0px 0px 1px var(--border-default);
-    transition: box-shadow 0.15s ease;
+    transition-property: box-shadow;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .field-textarea::placeholder { color: var(--text-muted); }
@@ -1512,6 +1539,7 @@
     font-family: var(--serif);
     color: var(--text-primary);
     margin: 0;
+    text-wrap: balance;
   }
 
   .chapter-panel-subtitle {
@@ -1543,8 +1571,8 @@
   }
 
   .panel-action-btn {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border-radius: var(--radius-sm);
     background: transparent;
     border: 1px solid transparent;
@@ -1552,6 +1580,9 @@
     cursor: pointer;
     display: grid;
     place-items: center;
+    transition-property: background, color, border-color, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .panel-action-btn :global(svg) { font-size: 0.9rem; }
@@ -1560,6 +1591,10 @@
     border-color: var(--border-subtle);
     color: var(--accent-brand);
     background: var(--bg-hover);
+  }
+
+  .panel-action-btn:active {
+    scale: 0.96;
   }
 
   .panel-action-btn:focus-visible {
@@ -1683,6 +1718,9 @@
     cursor: pointer;
     margin-left: auto;
     box-shadow: 0px 0px 0px 1px var(--border-strong);
+    transition-property: box-shadow, color, background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .upload-btn:hover {
@@ -1692,7 +1730,7 @@
   }
 
   .upload-btn:active:not(:disabled) {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+    scale: 0.96;
   }
 
   .upload-btn:focus-visible {
@@ -1722,7 +1760,9 @@
     overflow: hidden;
     cursor: grab;
     box-shadow: 0px 0px 0px 2px var(--border-default);
-    transition: box-shadow 140ms ease, transform 140ms ease;
+    transition-property: box-shadow, transform;
+    transition-duration: 140ms;
+    transition-timing-function: ease;
   }
 
   .page-card:hover {
@@ -1813,6 +1853,12 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    outline: 1px solid rgba(0, 0, 0, 0.1);
+    outline-offset: -1px;
+  }
+
+  :global(.dark) .page-thumb {
+    outline-color: rgba(255, 255, 255, 0.1);
   }
 
   .page-num {
@@ -1896,12 +1942,15 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--border-strong);
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .btn-secondary:hover { background: var(--border-default); }
 
   .btn-secondary:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+    scale: 0.96;
   }
 
   .btn-secondary:focus-visible {
@@ -1920,12 +1969,15 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--accent-brand);
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .btn-primary:hover { background: var(--accent-brand-hover); }
 
   .btn-primary:active:not(:disabled) {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.18);
+    scale: 0.96;
   }
 
   .btn-primary:focus-visible {
@@ -2151,6 +2203,7 @@
     color: var(--text-primary);
     margin: 0 0 10px;
     line-height: 1.2;
+    text-wrap: balance;
   }
 
   .modal-message {
@@ -2158,6 +2211,7 @@
     color: var(--text-secondary);
     line-height: 1.6;
     margin: 0 0 20px;
+    text-wrap: pretty;
   }
 
   .modal-message code {
@@ -2185,12 +2239,15 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--border-strong);
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .modal-btn-cancel:hover { background: var(--border-default); }
 
   .modal-btn-cancel:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+    scale: 0.96;
   }
 
   .modal-btn-cancel:focus-visible {
@@ -2212,13 +2269,15 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--accent-rose);
-    transition: background 0.15s ease;
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .modal-btn-danger:hover { background: #9a2b2b; }
 
   .modal-btn-danger:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.18);
+    scale: 0.96;
   }
 
   .modal-btn-danger:focus-visible {
@@ -2286,7 +2345,9 @@
     font-size: 0.85rem;
     outline: none;
     box-shadow: 0px 0px 0px 1px var(--border-default);
-    transition: box-shadow 0.15s ease;
+    transition-property: box-shadow;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .fetch-search-input:focus {
@@ -2319,9 +2380,16 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--border-strong);
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .fetch-back-btn:hover { background: var(--border-default); }
+
+  .fetch-back-btn:active {
+    scale: 0.96;
+  }
 
   .fetch-back-btn:focus-visible {
     outline: 2px solid var(--focus-blue);
@@ -2348,11 +2416,18 @@
     color: inherit;
     width: 100%;
     box-shadow: 0px 0px 0px 1px var(--border-default);
+    transition-property: box-shadow, background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .fetch-result-card:hover {
     box-shadow: 0px 0px 0px 1px var(--accent-brand);
     background: var(--accent-brand-light);
+  }
+
+  .fetch-result-card:active {
+    scale: 0.98;
   }
 
   .fetch-result-card:focus-visible {
@@ -2366,6 +2441,12 @@
     border-radius: 4px;
     object-fit: cover;
     flex-shrink: 0;
+    outline: 1px solid rgba(0, 0, 0, 0.1);
+    outline-offset: -1px;
+  }
+
+  :global(.dark) .fetch-result-cover {
+    outline-color: rgba(255, 255, 255, 0.1);
   }
 
   .fetch-result-cover-empty {
@@ -2439,6 +2520,7 @@
     line-height: 1.15;
     letter-spacing: -0.02em;
     color: var(--text-primary);
+    text-wrap: balance;
   }
 
   .fetch-preview-lede {
@@ -2447,6 +2529,7 @@
     font-size: 0.82rem;
     line-height: 1.55;
     color: var(--text-secondary);
+    text-wrap: pretty;
   }
 
   .fetch-preview-stack {
@@ -2665,6 +2748,12 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    outline: 1px solid rgba(0, 0, 0, 0.1);
+    outline-offset: -1px;
+  }
+
+  :global(.dark) .fetch-cover-thumb {
+    outline-color: rgba(255, 255, 255, 0.1);
   }
 
   .fetch-cover-missing {
@@ -2700,6 +2789,9 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--border-strong);
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .fetch-preview-cancel:hover {
@@ -2707,7 +2799,7 @@
   }
 
   .fetch-preview-cancel:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.12);
+    scale: 0.96;
   }
 
   .fetch-preview-cancel:focus-visible {
@@ -2726,6 +2818,9 @@
     font-weight: 500;
     cursor: pointer;
     box-shadow: 0px 0px 0px 1px var(--accent-brand);
+    transition-property: background, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   .fetch-preview-apply:hover {
@@ -2733,7 +2828,7 @@
   }
 
   .fetch-preview-apply:active {
-    box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.18);
+    scale: 0.96;
   }
 
   .fetch-preview-apply:focus-visible {
