@@ -242,7 +242,7 @@
   <div class="settings-grid">
     <div class="settings-card">
       <div class="card-header">
-        <div class="card-header-icon" style="background: var(--accent-blue-light); color: var(--accent-blue)">
+        <div class="card-header-icon" style="background: var(--accent-brand-light); color: var(--accent-brand)">
           <PhDatabaseFill class="card-h-icon" />
         </div>
         <div>
@@ -396,23 +396,26 @@
   .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: flex-end;
     flex-wrap: wrap;
     gap: 16px;
   }
 
   .page-title {
-    font-size: 1.75rem;
-    font-weight: 700;
+    font-size: 2.3rem;
+    font-weight: 500;
+    font-family: var(--serif);
     color: var(--text-primary);
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
     margin: 0;
+    line-height: 1.1;
   }
 
   .page-subtitle {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: var(--text-muted);
-    margin: 4px 0 0;
+    margin: 6px 0 0;
+    line-height: 1.6;
   }
 
   .header-actions {
@@ -421,53 +424,52 @@
     align-items: center;
   }
 
+  /* Warm Sand outline button */
   .action-btn-outline {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 8px 14px;
-    border: 1px solid var(--border-subtle);
+    border: none;
     border-radius: var(--radius-sm);
     background: var(--bg-surface);
-    color: var(--text-secondary);
-    font-family: inherit;
+    color: var(--charcoal-warm);
+    font-family: var(--sans);
     font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0px 0px 0px 1px var(--border-strong);
+    transition: background 0.15s ease;
   }
 
   .action-btn-outline:hover {
-    border-color: var(--border-default);
-    color: var(--text-primary);
-    background: var(--bg-hover);
+    background: var(--border-default);
   }
 
   :global(.btn-icon) {
     font-size: 0.95rem;
   }
 
+  /* Terracotta brand save button */
   .save-btn {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    background: var(--accent-blue);
+    background: var(--accent-brand);
     border: none;
     border-radius: var(--radius-sm);
-    color: #fff;
-    font-family: inherit;
+    color: #faf9f5;
+    font-family: var(--sans);
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
-    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+    box-shadow: 0px 0px 0px 1px var(--accent-brand);
+    transition: background 0.15s ease;
   }
 
   .save-btn:hover {
-    background: var(--accent-blue-hover);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    background: var(--accent-brand-hover);
   }
 
   .save-btn:disabled {
@@ -478,7 +480,7 @@
 
   .save-btn.saved {
     background: var(--accent-green);
-    box-shadow: 0 1px 3px rgba(5, 150, 105, 0.25);
+    box-shadow: 0px 0px 0px 1px var(--accent-green);
   }
 
   .alert {
@@ -493,7 +495,7 @@
 
   .alert-error {
     background: var(--accent-rose-light);
-    border: 1px solid var(--accent-rose);
+    box-shadow: 0px 0px 0px 1px var(--accent-rose);
     color: var(--accent-rose);
   }
 
@@ -509,7 +511,6 @@
 
   .settings-card {
     background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
     overflow: hidden;
@@ -521,7 +522,7 @@
 
   .card-danger {
     grid-column: 1 / -1;
-    border-color: #fecdd3;
+    box-shadow: 0px 0px 0px 1px color-mix(in srgb, var(--accent-rose) 25%, var(--border-subtle));
   }
 
   .card-header {
@@ -546,11 +547,12 @@
   }
 
   .card-heading {
-    font-size: 0.95rem;
-    font-weight: 700;
+    font-size: 1rem;
+    font-weight: 500;
+    font-family: var(--serif);
     color: var(--text-primary);
     margin: 0;
-    letter-spacing: -0.01em;
+    line-height: 1.2;
   }
 
   .card-desc {
@@ -574,8 +576,8 @@
 
   .field-label {
     font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-secondary);
+    font-weight: 500;
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-family: var(--mono);
@@ -584,7 +586,6 @@
   .field-readonly {
     padding: 10px 14px;
     background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
   }
 
@@ -598,14 +599,15 @@
   .field-input {
     width: 100%;
     padding: 10px 14px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     background: var(--bg-base);
-    border: 1px solid var(--border-subtle);
+    border: none;
     color: var(--text-primary);
-    font-family: inherit;
-    font-size: 0.85rem;
+    font-family: var(--sans);
+    font-size: 0.88rem;
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0px 0px 0px 1px var(--border-default);
+    transition: box-shadow 0.15s ease;
   }
 
   .field-input::placeholder {
@@ -613,8 +615,7 @@
   }
 
   .field-input:focus {
-    border-color: var(--accent-blue);
-    box-shadow: 0 0 0 3px var(--accent-blue-light);
+    box-shadow: 0px 0px 0px 1px var(--focus-blue), 0px 0px 0px 4px rgba(56, 152, 236, 0.15);
   }
 
   .input-group {
@@ -665,8 +666,9 @@
   }
 
   .danger-title {
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.88rem;
+    font-weight: 500;
+    font-family: var(--serif);
     color: var(--text-primary);
     margin: 0;
   }
@@ -677,19 +679,21 @@
     margin: 4px 0 0;
   }
 
+  /* Danger outline button — warm rose */
   .btn-danger {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
     background: transparent;
-    border: 1px solid var(--accent-rose);
+    border: none;
     border-radius: var(--radius-sm);
     color: var(--accent-rose);
-    font-family: inherit;
+    font-family: var(--sans);
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
+    box-shadow: 0px 0px 0px 1px var(--accent-rose);
     transition: background 0.15s ease;
     white-space: nowrap;
   }
@@ -708,7 +712,8 @@
 
   .footer-brand {
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 500;
+    font-family: var(--serif);
     color: var(--text-secondary);
   }
 
@@ -725,7 +730,7 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(20, 20, 19, 0.45);
     display: grid;
     place-items: center;
     z-index: 50;
@@ -734,7 +739,6 @@
 
   .modal {
     background: var(--bg-surface);
-    border: 1px solid var(--border-default);
     border-radius: var(--radius-lg);
     padding: 28px;
     max-width: 400px;
@@ -759,15 +763,16 @@
   }
 
   .modal-title {
-    font-size: 1.15rem;
-    font-weight: 700;
+    font-size: 1.25rem;
+    font-weight: 500;
+    font-family: var(--serif);
     color: var(--text-primary);
     margin: 0 0 10px;
-    letter-spacing: -0.02em;
+    line-height: 1.2;
   }
 
   .modal-message {
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     color: var(--text-secondary);
     line-height: 1.6;
     margin: 0 0 22px;
@@ -782,19 +787,18 @@
   .modal-btn-cancel {
     padding: 9px 20px;
     background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
+    border: none;
     border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    font-family: inherit;
+    color: var(--charcoal-warm);
+    font-family: var(--sans);
     font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
-    transition: border-color 0.15s ease, color 0.15s ease;
+    box-shadow: 0px 0px 0px 1px var(--border-strong);
   }
 
   .modal-btn-cancel:hover {
-    border-color: var(--border-default);
-    color: var(--text-primary);
+    background: var(--border-default);
   }
 
   .modal-btn-confirm {
@@ -805,16 +809,17 @@
     background: var(--accent-rose);
     border: none;
     border-radius: var(--radius-sm);
-    color: #fff;
-    font-family: inherit;
+    color: #faf9f5;
+    font-family: var(--sans);
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
+    box-shadow: 0px 0px 0px 1px var(--accent-rose);
     transition: background 0.15s ease;
   }
 
   .modal-btn-confirm:hover {
-    background: #be123c;
+    background: #9a2b2b;
   }
 
   .modal-btn-confirm :global(svg) {

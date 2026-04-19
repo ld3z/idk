@@ -4,3 +4,4 @@ dist
 .agents
 .cursor
 kaguya.py
+DESIGN.md

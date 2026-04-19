@@ -98,9 +98,9 @@
 
   /** Narrowest column (150px @640px) − padding − border; pretext at min width so small cards never clip */
   const CARD_TEXT_WIDTH = 112;
-  const CARD_TITLE_FONT = '600 14.4px "DM Sans", ui-sans-serif, system-ui, sans-serif';
+  const CARD_TITLE_FONT = '500 14.4px "Newsreader", Georgia, "Times New Roman", serif';
   const CARD_TITLE_LINE_HEIGHT = 17;
-  const CARD_AUTHOR_FONT = '400 12px "DM Sans", ui-sans-serif, system-ui, sans-serif';
+  const CARD_AUTHOR_FONT = '400 12px "DM Sans", Arial, sans-serif';
   const CARD_AUTHOR_LINE_HEIGHT = 15;
   const CARD_TEXT_FUDGE = 2;
 
@@ -241,29 +241,31 @@
   .library-page {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 28px;
   }
 
   .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: flex-end;
     flex-wrap: wrap;
     gap: 16px;
   }
 
   .page-title {
-    font-size: 1.75rem;
-    font-weight: 700;
+    font-size: 2.3rem;
+    font-weight: 500;
+    font-family: var(--serif);
     color: var(--text-primary);
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
     margin: 0;
+    line-height: 1.1;
   }
 
   .page-subtitle {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: var(--text-muted);
-    margin: 4px 0 0;
+    margin: 6px 0 0;
     font-family: var(--mono);
   }
 
@@ -289,42 +291,43 @@
 
   .search-input {
     padding: 8px 12px 8px 32px;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
+    border: none;
+    border-radius: var(--radius-md);
     background: var(--bg-surface);
     color: var(--text-primary);
-    font-family: inherit;
+    font-family: var(--sans);
     font-size: 0.8rem;
     width: 180px;
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: box-shadow 0.15s ease;
+    box-shadow: 0px 0px 0px 1px var(--border-default);
   }
 
   .search-input::placeholder { color: var(--text-muted); }
 
   .search-input:focus {
-    border-color: var(--accent-blue);
-    box-shadow: 0 0 0 3px var(--accent-blue-light);
+    box-shadow: 0px 0px 0px 1px var(--focus-blue), 0px 0px 0px 4px rgba(56, 152, 236, 0.15);
   }
 
+  /* Terracotta brand button */
   .add-btn {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    background: var(--accent-blue);
+    background: var(--accent-brand);
     border: none;
     border-radius: var(--radius-sm);
-    color: #fff;
-    font-family: inherit;
+    color: #faf9f5;
+    font-family: var(--sans);
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
     transition: background 0.15s ease;
-    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+    box-shadow: 0px 0px 0px 1px var(--accent-brand);
   }
 
-  .add-btn:hover { background: var(--accent-blue-hover); }
+  .add-btn:hover { background: var(--accent-brand-hover); }
 
   .add-btn:disabled { opacity: 0.6; cursor: default; pointer-events: none; }
 
@@ -337,27 +340,30 @@
     align-items: center;
     justify-content: center;
     gap: 12px;
-    padding: 60px 20px;
+    padding: 80px 20px;
     text-align: center;
   }
 
   :global(.empty-icon) {
     font-size: 3rem;
     color: var(--text-muted);
-    opacity: 0.5;
+    opacity: 0.4;
   }
 
   .empty-title {
-    font-size: 1.1rem;
-    font-weight: 600;
+    font-size: 1.3rem;
+    font-weight: 500;
+    font-family: var(--serif);
     color: var(--text-primary);
     margin: 0;
+    line-height: 1.2;
   }
 
   .empty-text {
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     color: var(--text-muted);
     margin: 0;
+    line-height: 1.6;
   }
 
   /* Cards grid */
@@ -370,17 +376,15 @@
   .manga-card {
     position: relative;
     background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
 
   .manga-card:hover {
-    border-color: var(--border-default);
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
   }
 
   .manga-card.unavailable { opacity: 0.6; }
@@ -417,9 +421,10 @@
 
   .card-initial {
     font-size: 2.5rem;
-    font-weight: 700;
+    font-weight: 500;
+    font-family: var(--serif);
     color: var(--text-muted);
-    opacity: 0.4;
+    opacity: 0.35;
   }
 
   .card-unavailable-badge {
@@ -433,7 +438,7 @@
     background: var(--accent-amber-light);
     color: var(--accent-amber);
     font-size: 0.65rem;
-    font-weight: 600;
+    font-weight: 500;
     border-radius: 999px;
   }
 
@@ -443,7 +448,8 @@
 
   .card-title {
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 500;
+    font-family: var(--serif);
     color: var(--text-primary);
     margin: 0 0 2px;
     letter-spacing: -0.01em;
@@ -470,10 +476,10 @@
   .card-chapters {
     font-family: var(--mono);
     font-size: 0.7rem;
-    color: var(--accent-blue);
-    font-weight: 600;
+    color: var(--accent-brand);
+    font-weight: 500;
     padding: 2px 8px;
-    background: var(--accent-blue-light);
+    background: var(--accent-brand-light);
     border-radius: 999px;
   }
 
@@ -493,14 +499,14 @@
     padding: 0;
     border-radius: 50%;
     background: var(--bg-surface);
-    border: 1px solid var(--border-default);
+    border: none;
     color: var(--text-secondary);
     cursor: pointer;
     display: grid;
     place-items: center;
     opacity: 0;
     box-shadow: var(--shadow-sm);
-    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.12s ease;
   }
 
   .manga-card:hover .card-remove-btn,
@@ -515,21 +521,20 @@
   }
 
   .card-remove-btn:hover {
-    color: #fff;
+    color: #faf9f5;
     background: var(--accent-rose);
-    border-color: var(--accent-rose);
     transform: scale(1.04);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0px 0px 0px 1px var(--accent-rose);
   }
 
   .card-remove-btn:hover :global(svg) {
-    color: #fff;
+    color: #faf9f5;
     opacity: 1;
   }
 
   .card-remove-btn:focus-visible {
     opacity: 1;
-    outline: 2px solid var(--accent-blue);
+    outline: 2px solid var(--focus-blue);
     outline-offset: 2px;
   }
 
@@ -554,7 +559,7 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(20, 20, 19, 0.45);
     display: grid;
     place-items: center;
     z-index: 50;
@@ -563,7 +568,6 @@
 
   .modal {
     background: var(--bg-surface);
-    border: 1px solid var(--border-default);
     border-radius: var(--radius-lg);
     padding: 28px;
     max-width: 480px;
@@ -572,15 +576,16 @@
   }
 
   .modal-title {
-    font-size: 1.15rem;
-    font-weight: 700;
+    font-size: 1.25rem;
+    font-weight: 500;
+    font-family: var(--serif);
     color: var(--text-primary);
     margin: 0 0 10px;
-    letter-spacing: -0.02em;
+    line-height: 1.2;
   }
 
   .modal-message {
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     color: var(--text-secondary);
     line-height: 1.6;
     margin: 0 0 18px;
@@ -592,24 +597,26 @@
     justify-content: flex-end;
   }
 
+  /* Warm Sand cancel button */
   .modal-btn-cancel {
     padding: 9px 20px;
     background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
+    border: none;
     border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    font-family: inherit;
+    color: var(--charcoal-warm);
+    font-family: var(--sans);
     font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
-    transition: border-color 0.15s ease, color 0.15s ease;
+    box-shadow: 0px 0px 0px 1px var(--border-strong);
+    transition: background 0.15s ease;
   }
 
   .modal-btn-cancel:hover {
-    border-color: var(--border-default);
-    color: var(--text-primary);
+    background: var(--border-default);
   }
 
+  /* Error crimson danger button */
   .modal-btn-danger {
     display: inline-flex;
     align-items: center;
@@ -619,19 +626,20 @@
     background: var(--accent-rose);
     border: none;
     border-radius: var(--radius-sm);
-    color: #fff;
-    font-family: inherit;
+    color: #faf9f5;
+    font-family: var(--sans);
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1;
     cursor: pointer;
+    box-shadow: 0px 0px 0px 1px var(--accent-rose);
     transition: background 0.15s ease;
   }
 
-  .modal-btn-danger:hover { background: #be123c; }
+  .modal-btn-danger:hover { background: #9a2b2b; }
 
   .modal-btn-danger:focus-visible {
-    outline: 2px solid var(--accent-blue);
+    outline: 2px solid var(--focus-blue);
     outline-offset: 2px;
   }
 
@@ -641,7 +649,7 @@
     width: 18px;
     height: 18px;
     flex-shrink: 0;
-    color: #fff;
+    color: #faf9f5;
     opacity: 1;
   }
 
