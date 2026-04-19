@@ -369,8 +369,8 @@
   /* Cards grid */
   .cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 240px));
+    gap: 18px;
   }
 
   .manga-card {
@@ -415,8 +415,8 @@
   .card-cover-img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    object-position: center;
+    object-fit: cover;
+    object-position: center top;
   }
 
   .card-initial {
@@ -603,7 +603,7 @@
     background: var(--bg-elevated);
     border: none;
     border-radius: var(--radius-sm);
-    color: var(--charcoal-warm);
+    color: var(--text-primary);
     font-family: var(--sans);
     font-size: 0.85rem;
     font-weight: 500;
@@ -614,7 +614,7 @@
 
   .modal-btn-cancel:hover {
     background: var(--border-default);
-  }
+    }
 
   /* Error crimson danger button */
   .modal-btn-danger {
@@ -670,7 +670,7 @@
 
   @media (max-width: 640px) {
     .cards-grid {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(140px, 200px));
     }
 
     .header-actions {

@@ -1644,7 +1644,7 @@
     background: var(--bg-surface);
     border: none;
     border-radius: var(--radius-sm);
-    color: var(--charcoal-warm);
+    color: var(--text-primary);
     font-family: var(--sans);
     font-size: 0.72rem;
     font-weight: 500;
@@ -1824,7 +1824,7 @@
     background: none;
     border: none;
     border-radius: var(--radius-sm);
-    color: var(--charcoal-warm);
+    color: var(--text-primary);
     font-family: var(--sans);
     font-size: 0.72rem;
     font-weight: 500;
@@ -1840,7 +1840,7 @@
     background: var(--bg-surface);
     border: none;
     border-radius: var(--radius-sm);
-    color: var(--charcoal-warm);
+    color: var(--text-primary);
     font-family: var(--sans);
     font-size: 0.8rem;
     font-weight: 500;
@@ -1899,7 +1899,7 @@
     background: var(--bg-base);
     border: 1px dashed var(--border-strong);
     border-radius: var(--radius-sm);
-    color: var(--charcoal-warm);
+    color: var(--text-primary);
     font-family: var(--sans);
     font-size: 0.78rem;
     font-weight: 500;
@@ -2106,7 +2106,7 @@
     background: var(--bg-elevated);
     border: none;
     border-radius: var(--radius-sm);
-    color: var(--charcoal-warm);
+    color: var(--text-primary);
     font-family: var(--sans);
     font-size: 0.85rem;
     font-weight: 500;
@@ -2221,7 +2221,7 @@
     background: var(--bg-elevated);
     border: none;
     border-radius: var(--radius-sm);
-    color: var(--charcoal-warm);
+    color: var(--text-primary);
     font-family: var(--sans);
     font-size: 0.75rem;
     font-weight: 500;
@@ -2591,7 +2591,7 @@
     border-radius: var(--radius-sm);
     border: none;
     background: var(--bg-surface);
-    color: var(--charcoal-warm);
+    color: var(--text-primary);
     font-family: var(--sans);
     font-size: 0.82rem;
     font-weight: 500;

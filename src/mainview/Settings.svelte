@@ -433,7 +433,7 @@
     border: none;
     border-radius: var(--radius-sm);
     background: var(--bg-surface);
-    color: var(--charcoal-warm);
+    color: var(--text-primary);
     font-family: var(--sans);
     font-size: 0.8rem;
     font-weight: 500;
@@ -789,7 +789,7 @@
     background: var(--bg-elevated);
     border: none;
     border-radius: var(--radius-sm);
-    color: var(--charcoal-warm);
+    color: var(--text-primary);
     font-family: var(--sans);
     font-size: 0.85rem;
     font-weight: 500;

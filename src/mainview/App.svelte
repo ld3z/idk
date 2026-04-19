@@ -185,7 +185,7 @@
     --accent-coral: #d97757;
 
     /* Semantic */
-    --accent-green: #5a8a5e;
+    --accent-green: #4a7a4e;
     --accent-green-light: rgba(90, 138, 94, 0.12);
     --accent-amber: #b58a3a;
     --accent-amber-light: rgba(181, 138, 58, 0.12);
@@ -235,7 +235,7 @@
     --accent-brand-hover: #c96442;
     --accent-coral: #e08a6a;
 
-    --accent-green: #7aad7e;
+    --accent-green: #6a9d6e;
     --accent-green-light: rgba(122, 173, 126, 0.15);
     --accent-amber: #d4a44a;
     --accent-amber-light: rgba(212, 164, 74, 0.15);
